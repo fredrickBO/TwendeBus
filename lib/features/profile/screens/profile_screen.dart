@@ -1,7 +1,12 @@
 // lib/features/profile/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
+import 'package:twende_bus_ui/features/about/screens/about_us_screen.dart';
+import 'package:twende_bus_ui/features/profile/screens/edit_profile_screen.dart';
+import 'package:twende_bus_ui/features/settings/screens/settings_screen.dart';
+import 'package:twende_bus_ui/features/support/screens/faq_support_screen.dart';
 import 'package:twende_bus_ui/features/tickets/tickets_list_screen.dart';
+import 'package:twende_bus_ui/features/wallet/screens/wallet_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -57,7 +62,16 @@ class ProfileScreen extends StatelessWidget {
         title: const Text("Profile"),
         // `actions` are the widgets displayed on the right side of the AppBar.
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.settings)),
+          IconButton(
+            onPressed: () {
+              // Navigate to edit screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+              );
+            },
+            icon: const Icon(Icons.edit_outlined),
+          ),
           const SizedBox(width: 8), // Adds a little space
         ],
       ),
@@ -119,25 +133,49 @@ class ProfileScreen extends StatelessWidget {
             context,
             icon: Icons.account_balance_wallet,
             title: "Wallet",
-            onTap: () {},
+            onTap: () {
+              // Navigate to wallet screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const WalletScreen()),
+              );
+            },
           ),
           _buildProfileMenuItem(
             context,
             icon: Icons.local_offer,
-            title: "Offers",
-            onTap: () {},
+            title: "Settings",
+            onTap: () {
+              // Navigate to settings screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
           ),
           _buildProfileMenuItem(
             context,
             icon: Icons.support_agent,
             title: "FAQs & Support",
-            onTap: () {},
+            onTap: () {
+              // Navigate to FAQs and support screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FaqSupportScreen()),
+              );
+            },
           ),
           _buildProfileMenuItem(
             context,
             icon: Icons.info_outline,
             title: "About Us",
-            onTap: () {},
+            onTap: () {
+              // Navigate to about us screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AboutUsScreen()),
+              );
+            },
           ),
           const Divider(),
           _buildProfileMenuItem(

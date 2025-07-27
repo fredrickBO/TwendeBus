@@ -25,6 +25,8 @@ class AppColors {
     231,
   ); // Light grey for cards/inputs
   static const Color errorColor = Color(0xFFDC3545);
+
+  static var accentColor;
 }
 
 class AppTextStyles {
