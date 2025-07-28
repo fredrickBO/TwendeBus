@@ -1,6 +1,7 @@
 // lib/features/home/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
+import 'package:twende_bus_ui/features/booking/screens/search_results_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -102,7 +103,12 @@ class HomeScreen extends StatelessWidget {
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: () {
-                            /* Search logic will be added later */
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const SearchResultsScreen(),
+                              ),
+                            );
                           },
                           child: const Text('Search Buses'),
                         ),
