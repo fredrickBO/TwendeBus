@@ -2,9 +2,14 @@
 import 'package:flutter/material.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/search_results_screen.dart';
+import 'package:twende_bus_ui/features/notifications/screens/notifications_screen.dart';
+import 'package:twende_bus_ui/features/routes/screens/routes_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
+
+  static final GlobalKey<ScaffoldState> _scaffoldKey =
+      GlobalKey<ScaffoldState>();
 
   @override
   Widget build(BuildContext context) {
@@ -47,12 +52,19 @@ class HomeScreen extends StatelessWidget {
                       Icons.notifications_none_outlined,
                       size: 28,
                     ),
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
                   ),
                   // An icon button for a side menu or drawer.
                   IconButton(
                     icon: const Icon(Icons.menu, size: 28),
-                    onPressed: () {},
+                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                   ),
                 ],
               ),
@@ -127,7 +139,13 @@ class HomeScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text("Routes", style: AppTextStyles.bodyText),
-                  TextButton(onPressed: () {}, child: const Text("See more")),
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RoutesScreen()),
+                    ),
+                    child: const Text("See more"),
+                  ),
                 ],
               ),
             ),

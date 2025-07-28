@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/payment_screen.dart';
-import 'package:twende_bus_ui/features/booking/screens/seat_selection.dart';
 
 // Convert the widget to a StatefulWidget to manage user selections.
 class PointsSelectionScreen extends StatefulWidget {
