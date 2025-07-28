@@ -1,6 +1,10 @@
 // lib/shared/widgets/app_drawer.dart
 import 'package:flutter/material.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
+import 'package:twende_bus_ui/features/about/screens/about_us_screen.dart';
+import 'package:twende_bus_ui/features/booking/screens/bookings_list_screen.dart';
+import 'package:twende_bus_ui/features/settings/screens/settings_screen.dart';
+import 'package:twende_bus_ui/features/support/screens/faq_support_screen.dart';
 import 'package:twende_bus_ui/features/wallet/screens/wallet_screen.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -42,7 +46,7 @@ class AppDrawer extends StatelessWidget {
                         bottom: 24.0,
                         right: 24.0,
                       ),
-                      child: Column(
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const CircleAvatar(
@@ -50,13 +54,24 @@ class AppDrawer extends StatelessWidget {
                             backgroundColor: Colors.grey,
                           ),
                           const SizedBox(height: 12),
-                          Text(
-                            "Fredrick",
-                            style: AppTextStyles.headline2.copyWith(
-                              fontSize: 20,
-                            ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Gloria",
+                                style: AppTextStyles.headline2.copyWith(
+                                  fontSize: 20,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "My profile",
+                                style: AppTextStyles.labelText,
+                              ),
+                            ],
                           ),
-                          Text("My profile", style: AppTextStyles.labelText),
                         ],
                       ),
                     ),
@@ -65,11 +80,11 @@ class AppDrawer extends StatelessWidget {
                       child: ListView(
                         padding: const EdgeInsets.symmetric(horizontal: 8.0),
                         children: <Widget>[
-                          _buildDrawerItem(
-                            icon: Icons.home_outlined,
-                            text: 'Home',
-                            onTap: () {},
-                          ),
+                          // _buildDrawerItem(
+                          //   icon: Icons.home_outlined,
+                          //   text: 'Home',
+                          //   onTap: () {},
+                          // ),
                           _buildDrawerItem(
                             icon: Icons.account_balance_wallet_outlined,
                             text: 'Wallet',
@@ -86,22 +101,55 @@ class AppDrawer extends StatelessWidget {
                           _buildDrawerItem(
                             icon: Icons.confirmation_number_outlined,
                             text: 'Bookings',
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const BookingsListScreen(),
+                                ),
+                              );
+                            },
                           ),
                           const Divider(),
                           _buildDrawerItem(
                             icon: Icons.settings_outlined,
                             text: 'Settings',
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const SettingsScreen(),
+                                ),
+                              );
+                            },
                           ),
                           _buildDrawerItem(
                             icon: Icons.support_outlined,
                             text: 'Support',
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const FaqSupportScreen(),
+                                ),
+                              );
+                            },
                           ),
                           _buildDrawerItem(
                             icon: Icons.info_outline,
-                            text: 'About',
+                            text: 'About Us',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AboutUsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _buildDrawerItem(
+                            icon: Icons.card_giftcard,
+                            text: 'Invite & Earn',
                             onTap: () {},
                           ),
                           const Divider(),
@@ -111,15 +159,6 @@ class AppDrawer extends StatelessWidget {
                             onTap: () {},
                           ),
                         ],
-                      ),
-                    ),
-                    // The bottom 'Invite & Earn' section.
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: _buildDrawerItem(
-                        icon: Icons.card_giftcard,
-                        text: 'Invite & Earn',
-                        onTap: () {},
                       ),
                     ),
                   ],
