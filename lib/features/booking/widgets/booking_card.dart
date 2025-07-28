@@ -32,7 +32,7 @@ class BookingCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       // The content of the card.
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(11.0),
         // A Column to arrange the card's content vertically.
         child: Column(
           children: [
@@ -46,7 +46,7 @@ class BookingCard extends StatelessWidget {
                     color: AppColors.subtleTextColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Image.asset('assets/images/bus_icon.png', height: 40),
+                  child: Image.asset('assets/images/bus_icon.png', height: 30),
                 ),
                 const SizedBox(width: 12),
                 // A Column for the bus name and route.
@@ -55,11 +55,11 @@ class BookingCard extends StatelessWidget {
                   children: [
                     Text(
                       busName,
-                      style: AppTextStyles.headline2.copyWith(fontSize: 18),
+                      style: AppTextStyles.headline2.copyWith(fontSize: 14),
                     ),
                     Text(
                       "$startPoint -- $endPoint",
-                      style: AppTextStyles.labelText,
+                      style: AppTextStyles.labelText.copyWith(fontSize: 12),
                     ),
                   ],
                 ),
@@ -69,7 +69,7 @@ class BookingCard extends StatelessWidget {
                   "KES $fare",
                   style: AppTextStyles.headline2.copyWith(
                     color: AppColors.primaryColor,
-                    fontSize: 18,
+                    fontSize: 14,
                   ),
                 ),
               ],
@@ -91,7 +91,7 @@ class BookingCard extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: AppColors.primaryColor),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),

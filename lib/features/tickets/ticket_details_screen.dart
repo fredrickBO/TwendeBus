@@ -16,7 +16,7 @@ class TicketDetailsScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
               color: AppColors.secondaryColor,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
               child: Text(
@@ -36,29 +36,30 @@ class TicketDetailsScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(11.0),
               child: Row(
                 children: [
-                  Image.asset('assets/images/bus_icon.png', height: 40),
+                  Image.asset('assets/images/bus_icon.png', height: 30),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         "KDR 145G",
-                        style: AppTextStyles.headline2.copyWith(fontSize: 18),
+                        style: AppTextStyles.headline2.copyWith(fontSize: 14),
                       ),
                       Text(
-                        "Westlands --- Utawala",
-                        style: AppTextStyles.labelText,
+                        "Westlands -- Utawala",
+                        style: AppTextStyles.labelText.copyWith(fontSize: 12),
                       ),
                     ],
                   ),
                   const Spacer(),
                   Text(
-                    "KES 100.00",
+                    "KES 100",
                     style: AppTextStyles.bodyText.copyWith(
                       fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
                   ),
                 ],
