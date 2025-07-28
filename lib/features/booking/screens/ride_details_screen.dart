@@ -22,7 +22,7 @@ class RideDetailsScreen extends StatelessWidget {
           const Divider(height: 32),
 
           // Price summary row.
-          _buildDetailRow("Total price for 1 passenger", "KES 150.00"),
+          _buildDetailRow("Total fare", "KES 150.00"),
           const Divider(height: 32),
 
           // Driver info section.

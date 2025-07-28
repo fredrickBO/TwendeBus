@@ -1,6 +1,7 @@
 // lib/features/booking/screens/ride_confirmation_screen.dart
 import 'package:flutter/material.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
+import 'package:twende_bus_ui/features/booking/screens/cancel_ride_screen.dart';
 import 'package:twende_bus_ui/shared/widgets/bottom_nav_bar.dart';
 
 class RideConfirmationScreen extends StatelessWidget {
@@ -49,7 +50,10 @@ class RideConfirmationScreen extends StatelessWidget {
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: () {
-                //Navigator.push(context, MaterialPageRoute(builder: (_) => const RideDetailsScreen()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CancelRideScreen()),
+                );
               },
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.secondaryColor),
