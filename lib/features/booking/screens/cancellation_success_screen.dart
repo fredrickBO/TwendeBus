@@ -49,7 +49,11 @@ class CancellationSuccessScreen extends StatelessWidget {
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: () {
-                /* Could navigate to home screen */
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const BottomNavBar()),
+                  (route) => false,
+                );
               },
               child: const Text("Book Another Ride"),
             ),

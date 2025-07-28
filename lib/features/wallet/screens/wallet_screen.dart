@@ -1,6 +1,7 @@
 // lib/features/wallet/screens/wallet_screen.dart
 import 'package:flutter/material.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
+import 'package:twende_bus_ui/features/wallet/screens/top_up_screen.dart';
 
 class WalletScreen extends StatelessWidget {
   const WalletScreen({super.key});
@@ -49,7 +50,10 @@ class WalletScreen extends StatelessWidget {
             alignment: Alignment.center,
             child: ElevatedButton.icon(
               onPressed: () {
-                /* This would trigger the M-Pesa top-up flow */
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TopUpScreen()),
+                );
               },
               icon: const Icon(Icons.add),
               label: const Text("Add Money"),

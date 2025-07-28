@@ -31,7 +31,7 @@ class BookingJourneyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        if (isCancelled) {
+        if (!isCancelled) {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const RideDetailsScreen()),

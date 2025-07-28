@@ -85,6 +85,7 @@ class _BookingsListScreenState extends State<BookingsListScreen>
           date: "Today",
           passengerCount: "1",
           fare: "150",
+          isCancelled: false,
         ),
         BookingJourneyCard(
           startPoint: "Utawala",
@@ -95,6 +96,7 @@ class _BookingsListScreenState extends State<BookingsListScreen>
           date: "Tomorrow",
           passengerCount: "1",
           fare: "150",
+          isCancelled: false,
         ),
       ],
     );
@@ -102,7 +104,23 @@ class _BookingsListScreenState extends State<BookingsListScreen>
 
   // Helper widget for the "Completed" tab
   Widget _buildCompletedBookings() {
-    return const Center(child: Text("Your past rides will appear here."));
+    return ListView(
+      padding: const EdgeInsets.all(16.0),
+      children: const [
+        // This card will also be tappable to view past ride details
+        BookingJourneyCard(
+          startPoint: "CBD",
+          startStop: "Kencom",
+          endPoint: "Ngong",
+          endStop: "Racecourse",
+          time: "2:00pm",
+          date: "Yesterday",
+          passengerCount: "1",
+          fare: "120",
+          isCancelled: false, // isCancelled is false for completed rides
+        ),
+      ],
+    );
   }
 
   // Helper widget for the "Cancelled" tab, matching the design
