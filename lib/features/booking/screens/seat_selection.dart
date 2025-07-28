@@ -107,7 +107,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                   // Based on the label in our map, we build the correct widget.
                   if (seatLabel == "DRV") {
                     return Image.asset(
-                      'assets/images/steering-wheel.png',
+                      'assets/images/steering_wheel.png',
                       height: 40,
                     ); // Steering wheel icon
                   } else if (seatLabel == "DRIVER") {
