@@ -14,11 +14,18 @@ class AuthService {
     required String email,
     required String password,
     required String firstName,
+    required String lastName,
   }) async {
+    final String cleanEmail = email.trim();
+    print('--- DEBUG START ---');
+    print('Sending email to Firebase: |$cleanEmail|');
+    print('Email as character codes: ${cleanEmail.codeUnits}');
+    print('--- DEBUG END ---');
+
     try {
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(
-            email: email.trim(),
+            email: cleanEmail,
             password: password.trim(),
           );
       User? user = userCredential.user;
@@ -27,7 +34,8 @@ class AuthService {
         await _firestore.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'firstName': firstName,
-          'email': email,
+          'lastName': lastName,
+          'email': cleanEmail,
           'role': 'passenger',
           'createdAt': Timestamp.now(),
           'walletBalance': 0, // Initialize wallet balance
@@ -36,6 +44,8 @@ class AuthService {
       }
       return "An unexpected error occurred.";
     } on FirebaseAuthException catch (e) {
+      print('FIREBASE AUTH EXCEPTION: Code: ${e.code}, Message: ${e.message}');
+
       return e.message ?? "Authentication Failed.";
     }
   }

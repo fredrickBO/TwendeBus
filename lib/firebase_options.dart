@@ -27,10 +27,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -77,4 +74,14 @@ class DefaultFirebaseOptions {
     storageBucket: 'twendebus-app.firebasestorage.app',
     iosBundleId: 'com.example.twendebus',
   );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyCWr4Yme3_wAK0YAk--ekAQf6VDjRG_k0U',
+    appId: '1:859913008310:web:901cbcd667dfd338c8a217',
+    messagingSenderId: '859913008310',
+    projectId: 'twendebus-app',
+    authDomain: 'twendebus-app.firebaseapp.com',
+    storageBucket: 'twendebus-app.firebasestorage.app',
+  );
+
 }
