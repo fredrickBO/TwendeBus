@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "859913008310",
+    "project_id": "twendebus-app",
+    "storage_bucket": "twendebus-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:859913008310:android:501c80fdd963dd53c8a217",
+        "android_client_info": {
+          "package_name": "com.example.twendebus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9YAAyHAZASYmgn5u0E8Y0Urb7302rJ5s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
