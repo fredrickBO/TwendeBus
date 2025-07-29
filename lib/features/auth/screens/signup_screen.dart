@@ -1,9 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:twende_bus_ui/core/providers.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/auth/screens/login_screen.dart';
 
-class SignUpScreen extends StatelessWidget {
+class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
+
+  @override
+  ConsumerState<SignUpScreen> createState() => _SignUpScreenState();
+}
+
+class _SignUpScreenState extends ConsumerState<SignUpScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  bool _isLoading = false;
+
+  void _signUp() async {
+    setState(() => _isLoading = true);
+    final authService = ref.read(authServiceProvider);
+    final result = await authService.signUp(
+      email: _emailController.text,
+      password: _passwordController.text,
+      firstName: _firstNameController.text,
+    );
+    setState(() => _isLoading = false);
+    if (result != "Success" && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result), backgroundColor: AppColors.errorColor),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,12 +94,12 @@ class SignUpScreen extends StatelessWidget {
             const SizedBox(height: 40),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  /* Functionality to be added later */
-                },
-                child: const Text('Sign Up'),
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: _signUp, // Use the new function
+                      child: const Text('Sign Up'),
+                    ),
             ),
           ],
         ),

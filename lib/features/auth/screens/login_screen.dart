@@ -1,13 +1,40 @@
 // lib/features/auth/screens/login_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:twende_bus_ui/core/providers.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/auth/screens/forgot_password_screen.dart';
 import 'package:twende_bus_ui/features/auth/screens/signup_screen.dart';
-import 'package:twende_bus_ui/shared/widgets/bottom_nav_bar.dart';
 //import 'package:twende_bus_ui/features/home/screens/home_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  bool _isLoading = false;
+
+  void _logIn() async {
+    setState(() => _isLoading = true);
+    final authService = ref.read(authServiceProvider);
+    final result = await authService.signUp(
+      email: _emailController.text,
+      password: _passwordController.text,
+      firstName: _firstNameController.text,
+    );
+    setState(() => _isLoading = false);
+    if (result != "Success" && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result), backgroundColor: AppColors.errorColor),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,18 +99,12 @@ class LoginScreen extends StatelessWidget {
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const BottomNavBar(),
-                    ), // We'll build this next
-                    (route) => false,
-                  );
-                },
-                child: const Text('Sign In'),
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: _logIn, // Use the new function
+                      child: const Text('Log In'),
+                    ),
             ),
           ],
         ),

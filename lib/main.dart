@@ -1,10 +1,14 @@
 // lib/main.dart
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
-import 'package:twende_bus_ui/features/auth/screens/onboarding_screen.dart';
+import 'package:twende_bus_ui/features/auth/screens/auth_wrapper.dart';
 
-void main() {
-  runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -15,7 +19,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'TwendeBus',
       theme: getAppThemeData(),
-      home: const OnboardingScreen(),
+      home: const AuthWrapper(),
       debugShowCheckedModeBanner: false,
     );
   }

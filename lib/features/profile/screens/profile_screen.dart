@@ -1,5 +1,7 @@
 // lib/features/profile/screens/profile_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:twende_bus_ui/core/providers.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/about/screens/about_us_screen.dart';
 import 'package:twende_bus_ui/features/profile/screens/edit_profile_screen.dart';
@@ -8,7 +10,7 @@ import 'package:twende_bus_ui/features/support/screens/faq_support_screen.dart';
 import 'package:twende_bus_ui/features/tickets/tickets_list_screen.dart';
 import 'package:twende_bus_ui/features/wallet/screens/wallet_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   // This is a private helper method to avoid repeating code for the stat columns.
@@ -55,7 +57,8 @@ class ProfileScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authService = ref.watch(authServiceProvider);
     return Scaffold(
       appBar: AppBar(
         // The title of the screen.
@@ -185,8 +188,7 @@ class ProfileScreen extends StatelessWidget {
             // We pass a specific color for the "Sign Out" option.
             color: AppColors.errorColor,
             onTap: () {
-              // Sign out logic will be added later. This will take the user
-              // back to the login screen.
+              authService.signOut();
             },
           ),
         ],
