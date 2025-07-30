@@ -1,23 +1,27 @@
 // lib/features/home/screens/home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:twende_bus_ui/core/providers.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/search_results_screen.dart';
 import 'package:twende_bus_ui/features/notifications/screens/notifications_screen.dart';
 import 'package:twende_bus_ui/features/routes/screens/routes_screen.dart';
 import 'package:twende_bus_ui/shared/widgets/app_drawer.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   static final GlobalKey<ScaffoldState> _scaffoldKey =
       GlobalKey<ScaffoldState>();
   @override
   Widget build(BuildContext context) {
+    final userAsyncValue = ref.watch(currentUserProvider);
+    final routesAsyncValue = ref.watch(routesProvider);
     // Scaffold provides the basic structure of the visual interface.
     return Scaffold(
       key: _scaffoldKey,
@@ -45,9 +49,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: AppColors.subtleTextColor,
                         ),
                       ),
-                      Text(
-                        'Gloria',
-                        style: AppTextStyles.headline1.copyWith(fontSize: 24),
+                      // The user's name is displayed here.
+                      userAsyncValue.when(
+                        data: (user) => Text(
+                          user?.firstName ?? 'User',
+                          style: AppTextStyles.headline1.copyWith(fontSize: 24),
+                        ),
+                        loading: () => const SizedBox(
+                          height: 28,
+                          width: 28,
+                          child: CircularProgressIndicator(),
+                        ),
+                        error: (error, stack) => Text('Error: $error'),
                       ),
                     ],
                   ),
@@ -162,21 +175,22 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(
               height: 100,
               // ListView.builder is an efficient way to create lists.
-              child: ListView.builder(
-                // This makes the list scroll horizontally.
-                scrollDirection: Axis.horizontal,
-                // Adds padding to the left of the list so it doesn't touch the edge.
-                padding: const EdgeInsets.only(left: 16.0),
-                // We are creating 4 static cards for the UI demonstration.
-                itemCount: 4,
-                itemBuilder: (context, index) {
-                  // Returns a reusable card widget for each item in the list.
-                  return const RouteCard(
-                    startPoint: 'Westlands',
-                    endPoint: 'Utawala',
-                    fare: '150',
-                  );
-                },
+              child: routesAsyncValue.when(
+                data: (routes) => ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(left: 16.0),
+                  itemCount: routes.length,
+                  itemBuilder: (context, index) {
+                    final route = routes[index];
+                    return RouteCard(
+                      startPoint: route.startPoint,
+                      endPoint: route.endPoint,
+                      fare: route.fare.toInt().toString(),
+                    );
+                  },
+                ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stack) => Center(child: Text('Error: $error')),
               ),
             ),
           ],

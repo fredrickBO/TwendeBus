@@ -58,6 +58,7 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final userAsyncValue = ref.watch(currentUserProvider);
     final authService = ref.watch(authServiceProvider);
     return Scaffold(
       appBar: AppBar(
@@ -79,119 +80,127 @@ class ProfileScreen extends ConsumerWidget {
         ],
       ),
       // A ListView to make the content scrollable.
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          // This Column holds the main profile picture and user info.
-          Column(
-            children: [
-              // A circular widget perfect for profile pictures.
-              const CircleAvatar(
-                radius: 50,
-                backgroundColor: AppColors.cardColor,
-                // A placeholder person icon.
-                child: Icon(
-                  Icons.person,
-                  size: 50,
-                  color: AppColors.subtleTextColor,
+      body: userAsyncValue.when(
+        data: (user) => ListView(
+          padding: const EdgeInsets.all(16.0),
+          children: [
+            // This Column holds the main profile picture and user info.
+            Column(
+              children: [
+                // A circular widget perfect for profile pictures.
+                const CircleAvatar(
+                  radius: 50,
+                  backgroundColor: AppColors.cardColor,
+                  // A placeholder person icon.
+                  child: Icon(
+                    Icons.person,
+                    size: 50,
+                    color: AppColors.subtleTextColor,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              // The user's name.
-              Text('Gloria Mukhwana', style: AppTextStyles.headline2),
-              // The user's email address.
-              Text('gloria@gmail.com', style: AppTextStyles.labelText),
-            ],
-          ),
-          const SizedBox(height: 24),
+                const SizedBox(height: 12),
+                // The user's name.
+                Text(user?.firstName ?? 'User', style: AppTextStyles.headline2),
+                // The user's live email address.
+                Text(
+                  user?.email ?? 'email@example.com',
+                  style: AppTextStyles.labelText,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
 
-          // The stats row.
-          Row(
-            // `spaceAround` distributes the free space evenly between the children.
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              // We call our helper method to create each stat column.
-              _buildStatColumn("Rides", "360"),
-              _buildStatColumn("Routes", "238"),
-              _buildStatColumn("Tickets", "20"),
-            ],
-          ),
-          const SizedBox(height: 24),
-          // A visual divider line.
-          const Divider(),
+            // The stats row.
+            Row(
+              // `spaceAround` distributes the free space evenly between the children.
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                // We call our helper method to create each stat column.
+                _buildStatColumn("Rides", "360"),
+                _buildStatColumn("Routes", "238"),
+                _buildStatColumn("Tickets", "20"),
+              ],
+            ),
+            const SizedBox(height: 24),
+            // A visual divider line.
+            const Divider(),
 
-          // Here we call our menu item helper for each row in the list.
-          _buildProfileMenuItem(
-            context,
-            icon: Icons.confirmation_number,
-            title: "Tickets",
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const TicketsListScreen()),
-              );
-            },
-          ),
-          _buildProfileMenuItem(
-            context,
-            icon: Icons.account_balance_wallet,
-            title: "Wallet",
-            onTap: () {
-              // Navigate to wallet screen
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const WalletScreen()),
-              );
-            },
-          ),
-          _buildProfileMenuItem(
-            context,
-            icon: Icons.local_offer,
-            title: "Settings",
-            onTap: () {
-              // Navigate to settings screen
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
-            },
-          ),
-          _buildProfileMenuItem(
-            context,
-            icon: Icons.support_agent,
-            title: "FAQs & Support",
-            onTap: () {
-              // Navigate to FAQs and support screen
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const FaqSupportScreen()),
-              );
-            },
-          ),
-          _buildProfileMenuItem(
-            context,
-            icon: Icons.info_outline,
-            title: "About Us",
-            onTap: () {
-              // Navigate to about us screen
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AboutUsScreen()),
-              );
-            },
-          ),
-          const Divider(),
-          _buildProfileMenuItem(
-            context,
-            icon: Icons.logout,
-            title: "Sign Out",
-            // We pass a specific color for the "Sign Out" option.
-            color: AppColors.errorColor,
-            onTap: () {
-              authService.signOut();
-            },
-          ),
-        ],
+            // Here we call our menu item helper for each row in the list.
+            _buildProfileMenuItem(
+              context,
+              icon: Icons.confirmation_number,
+              title: "Tickets",
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TicketsListScreen()),
+                );
+              },
+            ),
+            _buildProfileMenuItem(
+              context,
+              icon: Icons.account_balance_wallet,
+              title: "Wallet",
+              onTap: () {
+                // Navigate to wallet screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WalletScreen()),
+                );
+              },
+            ),
+            _buildProfileMenuItem(
+              context,
+              icon: Icons.local_offer,
+              title: "Settings",
+              onTap: () {
+                // Navigate to settings screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
+            ),
+            _buildProfileMenuItem(
+              context,
+              icon: Icons.support_agent,
+              title: "FAQs & Support",
+              onTap: () {
+                // Navigate to FAQs and support screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FaqSupportScreen()),
+                );
+              },
+            ),
+            _buildProfileMenuItem(
+              context,
+              icon: Icons.info_outline,
+              title: "About Us",
+              onTap: () {
+                // Navigate to about us screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AboutUsScreen()),
+                );
+              },
+            ),
+            const Divider(),
+            _buildProfileMenuItem(
+              context,
+              icon: Icons.logout,
+              title: "Sign Out",
+              // We pass a specific color for the "Sign Out" option.
+              color: AppColors.errorColor,
+              onTap: () {
+                authService.signOut();
+              },
+            ),
+          ],
+        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) =>
+            Center(child: Text("Error loading profile: $error")),
       ),
     );
   }
