@@ -17,10 +17,10 @@ class AuthService {
     required String lastName,
   }) async {
     final String cleanEmail = email.trim();
-    print('--- DEBUG START ---');
-    print('Sending email to Firebase: |$cleanEmail|');
-    print('Email as character codes: ${cleanEmail.codeUnits}');
-    print('--- DEBUG END ---');
+    // print('--- DEBUG START ---');
+    // print('Sending email to Firebase: |$cleanEmail|');
+    // print('Email as character codes: ${cleanEmail.codeUnits}');
+    // print('--- DEBUG END ---');
 
     try {
       UserCredential userCredential = await _auth
@@ -44,7 +44,7 @@ class AuthService {
       }
       return "An unexpected error occurred.";
     } on FirebaseAuthException catch (e) {
-      print('FIREBASE AUTH EXCEPTION: Code: ${e.code}, Message: ${e.message}');
+      //print('FIREBASE AUTH EXCEPTION: Code: ${e.code}, Message: ${e.message}');
 
       return e.message ?? "Authentication Failed.";
     }
@@ -63,6 +63,18 @@ class AuthService {
       return "Success";
     } on FirebaseAuthException catch (e) {
       return e.message ?? "Authentication Failed.";
+    }
+  }
+
+  //forgot password
+  Future<String> forgotPassword({required String email}) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+      // If the above line doesn't throw an error, it was successful.
+      return "Success";
+    } on FirebaseAuthException catch (e) {
+      // Return the specific error message from Firebase.
+      return e.message ?? "An error occurred.";
     }
   }
 

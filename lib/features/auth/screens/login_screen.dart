@@ -65,7 +65,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(leading: const BackButton()),
+      appBar: AppBar(leading: const BackButton(), title: const Text("Login")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         // We wrap the content in a Form widget.
@@ -106,7 +106,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(
-                  hintText: 'mattsmith@mail.com',
+                  hintText: 'Enter your email',
                   labelText: 'Email',
                 ),
                 keyboardType: TextInputType.emailAddress,
