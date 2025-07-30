@@ -2,6 +2,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twende_bus_ui/core/models/route_model.dart';
+import 'package:twende_bus_ui/core/models/trip_model.dart';
 import 'package:twende_bus_ui/core/models/user_model.dart';
 import 'package:twende_bus_ui/core/services/auth_service.dart';
 import 'package:twende_bus_ui/core/services/firestore_service.dart';
@@ -39,4 +40,13 @@ final currentUserProvider = StreamProvider<UserModel?>((ref) {
 // Provides a list of all bus routes from Firestore.
 final routesProvider = StreamProvider<List<RouteModel>>((ref) {
   return ref.watch(firestoreServiceProvider).streamRoutes();
+});
+//Provides a list of trips for a specific route.
+// The `.family` allows us to pass in the routeId.
+final tripsForRouteProvider = StreamProvider.family<List<TripModel>, String>((
+  ref,
+  routeId,
+) {
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  return firestoreService.streamTripsForRoute(routeId);
 });

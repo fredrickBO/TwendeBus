@@ -1,12 +1,14 @@
 // lib/features/booking/screens/seat_selection_screen.dart
 import 'package:flutter/material.dart';
 //import 'package:flutter_svg/flutter_svg.dart';
+import 'package:twende_bus_ui/core/models/route_model.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/points_selection_screen.dart';
 
 // We convert this to a StatefulWidget to manage the user's seat selection.
 class SeatSelectionScreen extends StatefulWidget {
-  const SeatSelectionScreen({super.key});
+  final RouteModel route;
+  const SeatSelectionScreen({super.key, required this.route});
 
   @override
   State<SeatSelectionScreen> createState() => _SeatSelectionScreenState();
@@ -71,7 +73,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  "KDR 145G Utawala - Westlands",
+                  "KDR 145G ${widget.route.startPoint} - ${widget.route.endPoint}",
                   style: AppTextStyles.labelText,
                 ),
                 const SizedBox(height: 16),
@@ -147,7 +149,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const PointsSelectionScreen(),
+                            builder: (_) =>
+                                PointsSelectionScreen(route: widget.route),
                           ),
                         );
                       }

@@ -7,6 +7,7 @@ import 'package:twende_bus_ui/features/booking/screens/search_results_screen.dar
 import 'package:twende_bus_ui/features/notifications/screens/notifications_screen.dart';
 import 'package:twende_bus_ui/features/routes/screens/routes_screen.dart';
 import 'package:twende_bus_ui/shared/widgets/app_drawer.dart';
+import 'package:twende_bus_ui/core/models/route_model.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,70 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   static final GlobalKey<ScaffoldState> _scaffoldKey =
       GlobalKey<ScaffoldState>();
+
+  //add controllers for the search fields.
+  final TextEditingController _fromController = TextEditingController();
+  final TextEditingController _toController = TextEditingController();
+
+  // The logic for the search button.
+  void _searchBuses() {
+    // Read the current list of routes from the provider.
+    final routes = ref.read(routesProvider).asData?.value;
+    if (routes == null || routes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Routes are not available yet.")),
+      );
+      return;
+    }
+
+    final fromText = _fromController.text.trim();
+    final toText = _toController.text.trim();
+
+    if (fromText.isEmpty || toText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter a starting point and destination."),
+        ),
+      );
+      return;
+    }
+
+    RouteModel? matchingRoute;
+    try {
+      // Find the first route that matches the search criteria (case-insensitive).
+      matchingRoute = routes.firstWhere(
+        (route) =>
+            route.startPoint.toLowerCase() == fromText.toLowerCase() &&
+            route.endPoint.toLowerCase() == toText.toLowerCase(),
+      );
+    } catch (e) {
+      matchingRoute =
+          null; // .firstWhere throws an error if no element is found.
+    }
+
+    if (matchingRoute != null) {
+      // If a route is found, navigate and pass the route object.
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SearchResultsScreen(route: matchingRoute!),
+        ),
+      );
+    } else {
+      // If no route is found, show an error.
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("No direct route found.")));
+    }
+  }
+
+  @override
+  void dispose() {
+    _fromController.dispose();
+    _toController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final userAsyncValue = ref.watch(currentUserProvider);
@@ -107,16 +172,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Column(
                     children: [
                       // A text field for the starting location.
-                      const TextField(
-                        decoration: InputDecoration(
+                      TextField(
+                        controller: _fromController,
+                        decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.trip_origin),
                           hintText: 'From',
                         ),
                       ),
                       const SizedBox(height: 12),
                       // A text field for the destination.
-                      const TextField(
-                        decoration: InputDecoration(
+                      TextField(
+                        controller: _toController,
+                        decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.location_on),
                           hintText: 'To',
                         ),
@@ -134,14 +201,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SearchResultsScreen(),
-                              ),
-                            );
-                          },
+                          onPressed: _searchBuses,
                           child: const Text('Search Buses'),
                         ),
                       ),
@@ -183,9 +243,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   itemBuilder: (context, index) {
                     final route = routes[index];
                     return RouteCard(
-                      startPoint: route.startPoint,
-                      endPoint: route.endPoint,
-                      fare: route.fare.toInt().toString(),
+                      route: route,
+                      //startPoint: route.startPoint,
+                      //endPoint: route.endPoint,
+                      //fare: route.fare.toInt().toString(),
                     );
                   },
                 ),
@@ -202,61 +263,71 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 // A smaller, reusable widget for displaying a single route.
 class RouteCard extends StatelessWidget {
-  final String startPoint;
-  final String endPoint;
-  final String fare;
+  final RouteModel route;
+  // final String startPoint;
+  // final String endPoint;
+  // final String fare;
 
   const RouteCard({
     super.key,
-    required this.startPoint,
-    required this.endPoint,
-    required this.fare,
+    required this.route,
+    // required this.startPoint,
+    // required this.endPoint,
+    // required this.fare,
   });
 
   @override
   Widget build(BuildContext context) {
     // A Container to set a specific width for the card.
-    return Container(
-      width: 250,
-      // Adds margin to the right of each card.
-      margin: const EdgeInsets.only(right: 12.0),
-      // The Card widget provides the material design card look with elevation.
-      child: Card(
-        color: AppColors.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          // A Row to layout the card's content horizontally.
-          child: Row(
-            children: [
-              const Icon(Icons.route, color: AppColors.primaryColor),
-              const SizedBox(width: 12),
-              // Expanded makes the Column take up all available horizontal space.
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      startPoint,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      endPoint,
-                      style: const TextStyle(color: AppColors.subtleTextColor),
-                    ),
-                  ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          // Pass the selected route to the next screen
+          MaterialPageRoute(builder: (_) => SearchResultsScreen(route: route)),
+        );
+      },
+      child: Container(
+        width: 250,
+        margin: const EdgeInsets.only(right: 12.0),
+        child: Card(
+          color: AppColors.cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                const Icon(Icons.route, color: AppColors.primaryColor),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        route.startPoint,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        route.endPoint,
+                        style: const TextStyle(
+                          color: AppColors.subtleTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              // The price text is at the end of the row.
-              Text(
-                "KES $fare",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryColor,
+                Text(
+                  "KES ${route.fare.toInt()}",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryColor,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

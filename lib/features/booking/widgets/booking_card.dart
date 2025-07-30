@@ -7,6 +7,7 @@ import 'package:twende_bus_ui/features/tickets/ticket_details_screen.dart'; // W
 // A reusable stateless widget for displaying booking information.
 class BookingCard extends StatelessWidget {
   // These are the properties the widget will accept.
+
   final String busName;
   final String startPoint;
   final String endPoint;

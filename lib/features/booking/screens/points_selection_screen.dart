@@ -1,11 +1,13 @@
 // lib/features/booking/screens/points_selection_screen.dart
 import 'package:flutter/material.dart';
+import 'package:twende_bus_ui/core/models/route_model.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/payment_screen.dart';
 
 // Convert the widget to a StatefulWidget to manage user selections.
 class PointsSelectionScreen extends StatefulWidget {
-  const PointsSelectionScreen({super.key});
+  final RouteModel route;
+  const PointsSelectionScreen({super.key, required this.route});
 
   @override
   State<PointsSelectionScreen> createState() => _PointsSelectionScreenState();
@@ -13,17 +15,17 @@ class PointsSelectionScreen extends StatefulWidget {
 
 class _PointsSelectionScreenState extends State<PointsSelectionScreen> {
   // These lists hold the data for the points. In a real app, this would come from Firestore.
-  final List<String> _boardingPoints = [
-    "Githunguri",
-    "Benedicter @ 6:20am",
-    "AP",
-    "Shooters",
-  ];
-  final List<String> _deboardingPoints = [
-    "Chiromo @ 7:05am",
-    "Naivas",
-    "Safaricom",
-  ];
+  // final List<String> _boardingPoints = [
+  //   "Githunguri",
+  //   "Benedicter @ 6:20am",
+  //   "AP",
+  //   "Shooters",
+  // ];
+  // final List<String> _deboardingPoints = [
+  //   "Chiromo @ 7:05am",
+  //   "Naivas",
+  //   "Safaricom",
+  // ];
 
   // These state variables will store the user's selection. They are nullable.
   String? _selectedBoardingPoint;
@@ -46,6 +48,8 @@ class _PointsSelectionScreenState extends State<PointsSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final List<String> _boardingPoints = widget.route.boardingPoints;
+    final List<String> _deboardingPoints = widget.route.deboardingPoints;
     // Check if both points have been selected to enable the button.
     final bool canProceed =
         _selectedBoardingPoint != null && _selectedDeboardingPoint != null;

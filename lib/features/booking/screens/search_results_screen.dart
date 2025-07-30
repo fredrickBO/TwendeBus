@@ -1,13 +1,19 @@
 // lib/features/booking/screens/search_results_screen.dart
 import 'package:flutter/material.dart';
+import 'package:twende_bus_ui/core/models/trip_model.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/seat_selection.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:twende_bus_ui/core/models/route_model.dart';
+import 'package:twende_bus_ui/core/providers.dart';
 
-class SearchResultsScreen extends StatelessWidget {
-  const SearchResultsScreen({super.key});
+class SearchResultsScreen extends ConsumerWidget {
+  final RouteModel route;
+  const SearchResultsScreen({super.key, required this.route});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tripsAsyncValue = ref.watch(tripsForRouteProvider(route.id));
     return Scaffold(
       extendBodyBehindAppBar: true, // Allows the body to go behind the AppBar
       appBar: AppBar(
@@ -63,48 +69,52 @@ class SearchResultsScreen extends StatelessWidget {
                     ),
                     // The list of buses
                     Expanded(
-                      child: ListView(
-                        controller: scrollController, // Important for scrolling
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        children: const [
-                          BusInfoCard(
-                            busCompany: 'Super Metro',
-                            fare: 100,
-                            seats: 30,
-                          ),
-                          BusInfoCard(
-                            busCompany: 'Metro Trans',
-                            fare: 130,
-                            seats: 12,
-                            isRecommended: false,
-                          ),
-                          BusInfoCard(
-                            busCompany: 'Enabled',
-                            fare: 150,
-                            seats: 24,
-                            isRecommended: false,
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Continue Button
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SeatSelectionScreen(),
-                              ),
+                      child: tripsAsyncValue.when(
+                        data: (trips) {
+                          if (trips.isEmpty) {
+                            return const Center(
+                              child: Text("No trips available for this route."),
                             );
-                          },
-                          child: const Text("Continue"),
-                        ),
+                          }
+                          return ListView.builder(
+                            controller: scrollController,
+                            padding: const EdgeInsets.all(16.0),
+                            itemCount: trips.length,
+                            itemBuilder: (context, index) {
+                              final trip = trips[index];
+                              return BusInfoCard(
+                                trip: trip,
+                                route: route,
+                                isRecommended:
+                                    index == 0, // Highlight the first one
+                              );
+                            },
+                          );
+                        },
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (error, stack) =>
+                            Center(child: Text("Error: $error")),
                       ),
                     ),
+                    // // Continue Button
+                    // Padding(
+                    //   padding: const EdgeInsets.all(16.0),
+                    //   child: SizedBox(
+                    //     width: double.infinity,
+                    //     child: ElevatedButton(
+                    //       onPressed: () {
+                    //         Navigator.push(
+                    //           context,
+                    //           MaterialPageRoute(
+                    //             builder: (_) => const SeatSelectionScreen(),
+                    //           ),
+                    //         );
+                    //       },
+                    //       child: const Text('Continue'),
+                    //     ),
+                    //   ),
+                    // ),
                   ],
                 ),
               );
@@ -118,80 +128,94 @@ class SearchResultsScreen extends StatelessWidget {
 
 // Reusable card for each bus in the list
 class BusInfoCard extends StatelessWidget {
-  final String busCompany;
-  final int fare;
-  final int seats;
+  final TripModel trip;
+  final RouteModel route;
+  // final String busCompany;
+  // final int fare;
+  // final int seats;
   final bool isRecommended;
 
   const BusInfoCard({
     super.key,
-    required this.busCompany,
-    required this.fare,
-    required this.seats,
+    required this.trip,
+    required this.route,
+    // required this.busCompany,
+    // required this.fare,
+    // required this.seats,
     this.isRecommended = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isRecommended ? AppColors.secondaryColor : Colors.transparent,
-          width: 1.5,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => SeatSelectionScreen(route: route)),
+        );
+      },
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isRecommended
+                ? AppColors.secondaryColor
+                : Colors.transparent,
+            width: 1.5,
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          children: [
-            Image.asset('assets/images/bus_icon.png', height: 50),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  busCompany,
-                  style: AppTextStyles.bodyText.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: const [
-                    Text("1:00 A.M."),
-                    SizedBox(width: 8),
-                    Icon(Icons.star, color: Colors.amber, size: 16),
-                    Text("4.6"),
-                  ],
-                ),
-              ],
-            ),
-            const Spacer(),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  "KES. $fare",
-                  style: AppTextStyles.bodyText.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.person,
-                      color: AppColors.subtleTextColor,
-                      size: 16,
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            children: [
+              Image.asset('assets/images/bus_icon.png', height: 50),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    trip.busCompany,
+                    style: AppTextStyles.bodyText.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
-                    Text("$seats"),
-                  ],
-                ),
-              ],
-            ),
-          ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Text("1:00 A.M."),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.star, color: Colors.amber, size: 16),
+                      Text("${trip.rating}"),
+                    ],
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    "KES. ${trip.fare.toInt()}",
+                    style: AppTextStyles.bodyText.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.person,
+                        color: AppColors.subtleTextColor,
+                        size: 16,
+                      ),
+                      Text("${trip.availableSeats}"),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
