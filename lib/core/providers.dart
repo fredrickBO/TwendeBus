@@ -43,10 +43,13 @@ final routesProvider = StreamProvider<List<RouteModel>>((ref) {
 });
 //Provides a list of trips for a specific route.
 // The `.family` allows us to pass in the routeId.
-final tripsForRouteProvider = StreamProvider.family<List<TripModel>, String>((
-  ref,
-  routeId,
-) {
-  final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.streamTripsForRoute(routeId);
-});
+final tripsForRouteProvider =
+    StreamProvider.family<List<TripModel>, Map<String, dynamic>>((
+      ref,
+      searchParams,
+    ) {
+      final firestoreService = ref.watch(firestoreServiceProvider);
+      final String routeId = searchParams['routeId'];
+      final DateTime date = searchParams['date'];
+      return firestoreService.streamTripsForRoute(routeId: routeId, date: date);
+    });

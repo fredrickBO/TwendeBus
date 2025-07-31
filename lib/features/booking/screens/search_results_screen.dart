@@ -1,5 +1,6 @@
 // lib/features/booking/screens/search_results_screen.dart
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:twende_bus_ui/core/models/trip_model.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/seat_selection.dart';
@@ -9,11 +10,18 @@ import 'package:twende_bus_ui/core/providers.dart';
 
 class SearchResultsScreen extends ConsumerWidget {
   final RouteModel route;
-  const SearchResultsScreen({super.key, required this.route});
+  final DateTime searchDate;
+  const SearchResultsScreen({
+    super.key,
+    required this.route,
+    required this.searchDate,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tripsAsyncValue = ref.watch(tripsForRouteProvider(route.id));
+    final searchParams = {'routeId': route.id, 'date': searchDate};
+    final tripsAsyncValue = ref.watch(tripsForRouteProvider(searchParams));
+
     return Scaffold(
       extendBodyBehindAppBar: true, // Allows the body to go behind the AppBar
       appBar: AppBar(
@@ -28,97 +36,46 @@ class SearchResultsScreen extends ConsumerWidget {
         ),
         title: const Text("Booking"),
       ),
-      body: Stack(
+      // THE FIX: Replace Stack with a simpler Column layout
+      body: Column(
         children: [
-          // 1. Map Placeholder (takes up the full screen)
+          // 1. Map Placeholder with a fixed height
           Container(
-            color: const Color(
-              0xFFE5E5E5,
-            ), // A light grey for the map placeholder
+            height: 250,
+            color: const Color(0xFFE5E5E5),
             child: const Center(
               child: Icon(Icons.map, size: 100, color: Colors.grey),
             ),
           ),
-          // 2. DraggableScrollableSheet for the slide-up panel
-          DraggableScrollableSheet(
-            initialChildSize: 0.45, // Starts at 45% of the screen height
-            minChildSize: 0.45, // Can't be dragged lower than 45%
-            maxChildSize: 0.8, // Can be dragged up to 80%
-            builder: (BuildContext context, ScrollController scrollController) {
-              return Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(24.0),
-                    topRight: Radius.circular(24.0),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    // Handle for the draggable sheet
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Container(
-                        width: 40,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    // The list of buses
-                    Expanded(
-                      child: tripsAsyncValue.when(
-                        data: (trips) {
-                          if (trips.isEmpty) {
-                            return const Center(
-                              child: Text("No trips available for this route."),
-                            );
-                          }
-                          return ListView.builder(
-                            controller: scrollController,
-                            padding: const EdgeInsets.all(16.0),
-                            itemCount: trips.length,
-                            itemBuilder: (context, index) {
-                              final trip = trips[index];
-                              return BusInfoCard(
-                                trip: trip,
-                                route: route,
-                                isRecommended:
-                                    index == 0, // Highlight the first one
-                              );
-                            },
-                          );
-                        },
-                        loading: () =>
-                            const Center(child: CircularProgressIndicator()),
-                        error: (error, stack) =>
-                            Center(child: Text("Error: $error")),
-                      ),
-                    ),
-                    // // Continue Button
-                    // Padding(
-                    //   padding: const EdgeInsets.all(16.0),
-                    //   child: SizedBox(
-                    //     width: double.infinity,
-                    //     child: ElevatedButton(
-                    //       onPressed: () {
-                    //         Navigator.push(
-                    //           context,
-                    //           MaterialPageRoute(
-                    //             builder: (_) => const SeatSelectionScreen(),
-                    //           ),
-                    //         );
-                    //       },
-                    //       child: const Text('Continue'),
-                    //     ),
-                    //   ),
-                    // ),
-                  ],
-                ),
-              );
-            },
+          // 2. Header for the list
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              "Buses for ${DateFormat('d MMM yyyy').format(searchDate)}",
+              style: AppTextStyles.headline2,
+            ),
+          ),
+          // 3. The list of buses, wrapped in an Expanded widget
+          Expanded(
+            child: tripsAsyncValue.when(
+              data: (trips) {
+                if (trips.isEmpty) {
+                  return const Center(
+                    child: Text("No trips found for the selected date."),
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  itemCount: trips.length,
+                  itemBuilder: (context, index) {
+                    final trip = trips[index];
+                    return BusInfoCard(trip: trip, route: route);
+                  },
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(child: Text("Error: $error")),
+            ),
           ),
         ],
       ),
