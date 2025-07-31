@@ -2,12 +2,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twende_bus_ui/core/providers.dart';
+import 'package:twende_bus_ui/features/auth/screens/login_screen.dart';
 import 'package:twende_bus_ui/features/auth/screens/onboarding_screen.dart';
 import 'package:twende_bus_ui/shared/widgets/bottom_nav_bar.dart';
 
 // A ConsumerWidget can listen to providers.
 class AuthWrapper extends ConsumerWidget {
-  const AuthWrapper({super.key});
+  final bool hasSeenOnboarding;
+  const AuthWrapper({super.key, required this.hasSeenOnboarding});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,7 +26,15 @@ class AuthWrapper extends ConsumerWidget {
           return const BottomNavBar();
         }
         // If the user object is null, the user is logged out.
-        return const OnboardingScreen();
+        // We check if the user has seen the onboarding screen.
+        // If they have, we show the login screen.
+        if (hasSeenOnboarding) {
+          // If the user has seen the onboarding, we show the login screen.
+          return const LoginScreen();
+        } else {
+          // If the user has not seen the onboarding, we show the onboarding screen.
+          return const OnboardingScreen();
+        }
       },
       // This is shown while Firebase is checking the initial auth state.
       loading: () =>

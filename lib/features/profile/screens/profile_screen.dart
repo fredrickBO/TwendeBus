@@ -99,8 +99,12 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // The user's name.
-                Text(user?.firstName ?? 'User', style: AppTextStyles.headline2),
+                // The user's full name
+                Text(
+                  '${user?.firstName ?? 'User'} ${user?.lastName ?? ''}',
+                  style: AppTextStyles.headline1,
+                ),
+                //Text(user?.firstName ?? 'User', style: AppTextStyles.headline2),
                 // The user's live email address.
                 Text(
                   user?.email ?? 'email@example.com',

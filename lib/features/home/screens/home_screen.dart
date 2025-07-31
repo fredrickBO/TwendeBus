@@ -174,10 +174,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       // A text field for the starting location.
                       TextField(
                         controller: _fromController,
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.trip_origin),
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.trip_origin),
                           hintText: 'From',
+
+                          //border outline
+                          border: OutlineInputBorder(
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(10),
+                            ),
+                            borderSide: BorderSide(
+                              color: const Color.fromARGB(255, 231, 233, 233),
+                              width: 1,
+                            ),
+                          ),
                         ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      //adding arrow icon image between the two text fields
+                      Image.asset(
+                        'assets/images/arrow.png',
+                        height: 24,
+
+                        //move the image to the right
+                        alignment: Alignment.centerRight,
                       ),
                       const SizedBox(height: 12),
                       // A text field for the destination.
@@ -186,6 +207,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.location_on),
                           hintText: 'To',
+                          //border outline
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(10)),
+                            borderSide: BorderSide(
+                              color: const Color.fromARGB(255, 231, 233, 233),
+                              width: 1,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -194,6 +223,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         decoration: InputDecoration(
                           prefixIcon: Icon(Icons.calendar_today),
                           hintText: 'Date',
+                          //border outline
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(10)),
+                            borderSide: BorderSide(
+                              color: Color.fromARGB(255, 231, 233, 233),
+                              width: 1,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
