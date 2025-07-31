@@ -5,6 +5,7 @@ import 'package:twende_bus_ui/core/providers.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/auth/screens/forgot_password_screen.dart';
 import 'package:twende_bus_ui/features/auth/screens/signup_screen.dart';
+import 'package:twende_bus_ui/features/auth/widgets/google_sign_in_button.dart';
 import 'package:twende_bus_ui/shared/widgets/bottom_nav_bar.dart'; // For navigation on success
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -19,6 +20,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+
+  //variable for password visibility
+  bool _isPasswordVisible = false;
 
   void _logIn() async {
     // First, validate the form.
@@ -55,6 +59,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  //function to handle the Google Sign-In
+  void _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    final authService = ref.read(authServiceProvider);
+    final result = await authService.signInWithGoogle();
+
+    if (!mounted) return;
+
+    setState(() => _isLoading = false);
+
+    if (result == "Success") {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const BottomNavBar()),
+        (route) => false,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result), backgroundColor: AppColors.errorColor),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -75,8 +102,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // This header section is preserved from your design.
-              Text("Welcome back, Gloria!", style: AppTextStyles.headline1),
-              const SizedBox(height: 8),
+              Text("Welcome back!", style: AppTextStyles.headline1),
+              const SizedBox(height: 4),
               Row(
                 children: [
                   Text(
@@ -86,7 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => Navigator.pushReplacement(
+                    onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const SignUpScreen()),
                     ),
@@ -100,13 +127,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 30),
 
               // THE FIX: Each field is now a TextFormField with a controller and validator.
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(
-                  hintText: 'Enter your email',
+                  hintText: 'Enter valid email',
                   labelText: 'Email',
                 ),
                 keyboardType: TextInputType.emailAddress,
@@ -118,12 +145,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               TextFormField(
                 controller: _passwordController,
-                decoration: const InputDecoration(
+                obscureText: !_isPasswordVisible,
+                decoration: InputDecoration(
                   hintText: 'Password',
                   labelText: 'Password',
-                  suffixIcon: Icon(Icons.visibility_off),
+
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                  ),
                 ),
-                obscureText: true,
                 validator: (value) => (value == null || value.isEmpty)
                     ? 'Please enter your password'
                     : null,
@@ -155,6 +194,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ), // Changed text to "Sign In"
                       ),
               ),
+              const SizedBox(height: 20),
+              // Google Sign-In button
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: .0),
+                child: Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Text("OR", style: AppTextStyles.labelText),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              GoogleSignInButton(onPressed: _signInWithGoogle),
             ],
           ),
         ),

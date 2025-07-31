@@ -1,6 +1,7 @@
 // lib/core/services/auth_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+//import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -63,6 +64,45 @@ class AuthService {
       return "Success";
     } on FirebaseAuthException catch (e) {
       return e.message ?? "Authentication Failed.";
+    }
+  }
+
+  // THIS IS THE NEW, CORRECT signInWithGoogle METHOD FOR WEB
+  Future<String> signInWithGoogle() async {
+    try {
+      // 1. Create a new GoogleAuthProvider instance.
+      final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+
+      // 2. Call signInWithPopup. This is the web-specific method that
+      //    handles the entire pop-up flow for you.
+      final UserCredential userCredential = await _auth.signInWithPopup(
+        googleProvider,
+      );
+      final User? user = userCredential.user;
+
+      // 3. CRUCIAL: Check if this is a new user and create their profile.
+      //    This logic remains the same and is still correct.
+      if (user != null &&
+          userCredential.additionalUserInfo?.isNewUser == true) {
+        await _firestore.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'firstName': user.displayName?.split(' ').first ?? '',
+          'lastName': user.displayName?.split(' ').last ?? '',
+          'email': user.email,
+          'role': 'passenger',
+          'createdAt': Timestamp.now(),
+          'walletBalance': 0,
+        });
+      }
+      return "Success";
+    } on FirebaseAuthException catch (e) {
+      // Handle potential errors like "popup-closed-by-user"
+      if (e.code == 'popup-closed-by-user') {
+        return 'Sign-in aborted by user.';
+      }
+      return e.message ?? "An error occurred.";
+    } catch (e) {
+      return "An unexpected error occurred: ${e.toString()}";
     }
   }
 

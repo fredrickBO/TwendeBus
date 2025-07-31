@@ -6,7 +6,7 @@ import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/search_results_screen.dart';
 import 'package:twende_bus_ui/features/notifications/screens/notifications_screen.dart';
 import 'package:twende_bus_ui/features/routes/screens/routes_screen.dart';
-import 'package:twende_bus_ui/shared/widgets/app_drawer.dart';
+//import 'package:twende_bus_ui/shared/widgets/app_drawer.dart';
 import 'package:twende_bus_ui/core/models/route_model.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -17,8 +17,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  static final GlobalKey<ScaffoldState> _scaffoldKey =
-      GlobalKey<ScaffoldState>();
+  // static final GlobalKey<ScaffoldState> _scaffoldKey =
+  //     GlobalKey<ScaffoldState>();
 
   //add controllers for the search fields.
   final TextEditingController _fromController = TextEditingController();
@@ -89,8 +89,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final routesAsyncValue = ref.watch(routesProvider);
     // Scaffold provides the basic structure of the visual interface.
     return Scaffold(
-      key: _scaffoldKey,
-      endDrawer: const AppDrawer(),
       // SafeArea ensures that the app's content is not obscured by system intrusions
       // like the notch on an iPhone or the status bar on Android.
       body: SafeArea(
@@ -145,11 +143,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       );
                     },
-                  ),
-                  // An icon button for a side menu or drawer.
-                  IconButton(
-                    icon: const Icon(Icons.menu, size: 28),
-                    onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
                   ),
                 ],
               ),
