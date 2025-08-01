@@ -2,13 +2,19 @@
 import 'package:flutter/material.dart';
 //import 'package:flutter_svg/flutter_svg.dart';
 import 'package:twende_bus_ui/core/models/route_model.dart';
+import 'package:twende_bus_ui/core/models/trip_model.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/points_selection_screen.dart';
 
 // We convert this to a StatefulWidget to manage the user's seat selection.
 class SeatSelectionScreen extends StatefulWidget {
+  final TripModel trip;
   final RouteModel route;
-  const SeatSelectionScreen({super.key, required this.route});
+  const SeatSelectionScreen({
+    super.key,
+    required this.trip,
+    required this.route,
+  });
 
   @override
   State<SeatSelectionScreen> createState() => _SeatSelectionScreenState();
@@ -19,24 +25,57 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   // Using a Set is efficient as it automatically handles duplicates.
   final Set<String> _selectedSeats = {};
   // This set represents seats that are already booked by others.
-  final Set<String> _bookedSeats = {"C2", "E4", "G4"};
+  late final Set<String> _bookedSeats;
 
   // The precise layout map for a Super Metro bus.
   // We use 5 columns to accommodate the back row.
-  final List<String> seatLayout = [
-    // Steering wheel row
-    "", "AISLE", "", "AISLE", "DRV",
-    // Front passenger row
-    "A1", "A2", "AISLE", "AISLE", "DRIVER",
-    // Middle rows
-    "B1", "B2", "AISLE", "B3", "B4",
-    "C1", "C2", "AISLE", "C3", "C4",
-    "D1", "D2", "AISLE", "D3", "D4",
-    "E1", "E2", "AISLE", "E3", "E4",
-    "F1", "F2", "AISLE", "F3", "F4",
-    // Back row with 5 seats
-    "G1", "G2", "G5", "G3", "G4",
-  ];
+  late final List<String> _seatLayout;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the booked seats from the trip model.
+    _bookedSeats = widget.trip.bookedSeats.toSet();
+    // Define the seat layout for the bus.
+    _seatLayout = _generateSeatLayout(widget.trip.capacity);
+  }
+
+  // This function generates the seat layout based on the bus capacity.
+  List<String> _generateSeatLayout(int capacity) {
+    List<String> layout = [];
+    //adding the steering wheel row
+    layout.addAll(["", "AISLE", "", "AISLE", "DRV"]);
+
+    //driver seat row
+    layout.addAll(["A1", "A2", "AISLE", "", "DRIVER"]);
+
+    //middle rows
+    //calculate hoe many seats are left to be drawn in the middle and back rows
+    //Total passenger seats = capacity -1(driver's seat)
+    //Seats Already drawn = 2(A1, A2)
+    //seats in the back row = 5
+    int middleSeatsToDraw = (capacity - 1) - 2 - 5;
+    int middleRows = middleSeatsToDraw ~/ 4; // 4 seats per row
+
+    //define characters for the middle rows
+    List<String> rowChars = ["B", "B", "C", "D", "E", "F", "G"];
+
+    //loop to add middle rows
+    for (int i = 0; i < middleRows; i++) {
+      String char = rowChars[i];
+      layout.addAll(["${char}1", "${char}2", "AISLE", "${char}3", "${char}4"]);
+    }
+    //back row
+    String lastChar = rowChars[middleRows];
+    layout.addAll([
+      "${lastChar}1",
+      "${lastChar}2",
+      "${lastChar}5",
+      "${lastChar}3",
+      "${lastChar}4",
+    ]);
+    return layout;
+  }
 
   // This function handles the logic when a user taps a seat.
   void _onSeatTapped(String seatNumber) {
@@ -60,7 +99,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Super Metro"), centerTitle: true),
+      appBar: AppBar(title: Text(widget.trip.busCompany), centerTitle: true),
       body: Column(
         children: [
           // Subtitle and legend section
@@ -73,7 +112,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  "KDR 145G ${widget.route.startPoint} - ${widget.route.endPoint}",
+                  "${widget.trip.busPlate} ${widget.route.startPoint} - ${widget.route.endPoint}",
                   style: AppTextStyles.labelText,
                 ),
                 const SizedBox(height: 16),
@@ -102,9 +141,9 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                   mainAxisSpacing: 8,
                 ),
                 // The number of items is the length of our layout map.
-                itemCount: seatLayout.length,
+                itemCount: _seatLayout.length,
                 itemBuilder: (context, index) {
-                  final seatLabel = seatLayout[index];
+                  final seatLabel = _seatLayout[index];
 
                   // Based on the label in our map, we build the correct widget.
                   if (seatLabel == "DRV") {

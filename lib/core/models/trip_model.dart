@@ -10,6 +10,8 @@ class TripModel {
   final int availableSeats;
   final double rating;
   final double fare;
+  final int capacity;
+  final List<String> bookedSeats; //List of booked seats
   // In a real app, you might also have a list of booked seat numbers.
 
   TripModel({
@@ -21,6 +23,8 @@ class TripModel {
     required this.availableSeats,
     required this.rating,
     required this.fare,
+    required this.capacity,
+    required this.bookedSeats,
   });
 
   factory TripModel.fromFirestore(DocumentSnapshot doc) {
@@ -35,6 +39,8 @@ class TripModel {
       availableSeats: data['availableSeats'] ?? 0,
       rating: (data['rating'] ?? 0.0).toDouble(),
       fare: (data['fare'] ?? 0).toDouble(),
+      capacity: data['capacity'] ?? 0,
+      bookedSeats: List<String>.from(data['bookedSeats'] ?? []),
     );
   }
 }

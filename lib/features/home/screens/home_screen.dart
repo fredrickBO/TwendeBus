@@ -355,6 +355,7 @@ class RouteCard extends StatelessWidget {
     // A Container to set a specific width for the card.
     return GestureDetector(
       onTap: () {
+        //
         final dateString = DateFormat('yyyy-MM-dd').format(DateTime.now());
         Navigator.push(
           context,

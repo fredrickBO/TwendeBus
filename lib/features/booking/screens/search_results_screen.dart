@@ -65,7 +65,7 @@ class SearchResultsScreen extends ConsumerWidget {
               data: (trips) {
                 if (trips.isEmpty) {
                   return const Center(
-                    child: Text("No trips found for the selected date."),
+                    child: Text("No trips and buses available for now"),
                   );
                 }
                 return ListView.builder(
@@ -91,18 +91,12 @@ class SearchResultsScreen extends ConsumerWidget {
 class BusInfoCard extends StatelessWidget {
   final TripModel trip;
   final RouteModel route;
-  // final String busCompany;
-  // final int fare;
-  // final int seats;
   final bool isRecommended;
 
   const BusInfoCard({
     super.key,
     required this.trip,
     required this.route,
-    // required this.busCompany,
-    // required this.fare,
-    // required this.seats,
     this.isRecommended = true,
   });
 
@@ -112,7 +106,9 @@ class BusInfoCard extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => SeatSelectionScreen(route: route)),
+          MaterialPageRoute(
+            builder: (_) => SeatSelectionScreen(route: route, trip: trip),
+          ),
         );
       },
       child: Card(
@@ -144,7 +140,10 @@ class BusInfoCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Text("1:00 A.M."),
+                      //trim departure time to only show hours and minutes, show in 12-hour format
+                      Text(
+                        "${trip.departureTime.hour % 12}:${trip.departureTime.minute.toString().padLeft(2, '0')} ${trip.departureTime.hour >= 12 ? 'P.M.' : 'A.M.'}",
+                      ),
                       const SizedBox(width: 8),
                       const Icon(Icons.star, color: Colors.amber, size: 16),
                       Text("${trip.rating}"),
