@@ -48,8 +48,8 @@ class _PointsSelectionScreenState extends State<PointsSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> _boardingPoints = widget.route.boardingPoints;
-    final List<String> _deboardingPoints = widget.route.deboardingPoints;
+    final List<String> boardingPoints = widget.route.boardingPoints;
+    final List<String> deboardingPoints = widget.route.deboardingPoints;
     // Check if both points have been selected to enable the button.
     final bool canProceed =
         _selectedBoardingPoint != null && _selectedDeboardingPoint != null;
@@ -64,7 +64,7 @@ class _PointsSelectionScreenState extends State<PointsSelectionScreen> {
             Text("Boarding points:", style: AppTextStyles.headline2),
             const SizedBox(height: 8),
             // We use `.map()` to dynamically create a list of widgets from our data list.
-            ..._boardingPoints.map(
+            ...boardingPoints.map(
               (point) => _buildPointTile(
                 name: point,
                 groupValue: _selectedBoardingPoint,
@@ -76,7 +76,7 @@ class _PointsSelectionScreenState extends State<PointsSelectionScreen> {
 
             Text("Deboarding points:", style: AppTextStyles.headline2),
             const SizedBox(height: 8),
-            ..._deboardingPoints.map(
+            ...deboardingPoints.map(
               (point) => _buildPointTile(
                 name: point,
                 groupValue: _selectedDeboardingPoint,

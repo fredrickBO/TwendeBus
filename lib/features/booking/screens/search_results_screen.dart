@@ -7,19 +7,23 @@ import 'package:twende_bus_ui/features/booking/screens/seat_selection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twende_bus_ui/core/models/route_model.dart';
 import 'package:twende_bus_ui/core/providers.dart';
+import 'package:twende_bus_ui/core/models/search_params.dart';
 
 class SearchResultsScreen extends ConsumerWidget {
   final RouteModel route;
-  final DateTime searchDate;
+  final String searchDateString;
   const SearchResultsScreen({
     super.key,
     required this.route,
-    required this.searchDate,
+    required this.searchDateString,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final searchParams = {'routeId': route.id, 'date': searchDate};
+    final searchParams = SearchParams(
+      routeId: route.id,
+      dateString: searchDateString,
+    );
     final tripsAsyncValue = ref.watch(tripsForRouteProvider(searchParams));
 
     return Scaffold(
@@ -51,7 +55,7 @@ class SearchResultsScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              "Buses for ${DateFormat('d MMM yyyy').format(searchDate)}",
+              "Buses for on ${DateFormat('EEEE, MMMM d').format(DateTime.parse(searchDateString))}",
               style: AppTextStyles.headline2,
             ),
           ),

@@ -28,21 +28,21 @@ class FirestoreService {
         );
   }
 
-  //Get a stream of trips for a specific route.
+  // //Get a stream of trips for a specific route.
   Stream<List<TripModel>> streamTripsForRoute({
     required String routeId,
-    required DateTime date,
+    required String departureDay,
   }) {
     //calculate the start of the day selected day
-    final startOfDay = DateTime.utc(date.year, date.month, date.day);
+    //final startOfDay = DateTime.utc(date.year, date.month, date.day);
 
     //calculate the end of the day selected day
     //final endOfDay = DateTime.utc(date.year, date.month, date.day + 1);
 
     // --- ADD THIS DEBUGGING BLOCK ---
-    print('--- Firestore Query Debug ---');
+    print('--- Final Query ---');
     print('Querying for routeId: $routeId');
-    print('Start of Day (UTC): $startOfDay');
+    print('Start of Day (UTC): $departureDay');
     //print('End of Day (UTC): $endOfDay');
     print('---------------------------');
     // ---------------------------------
@@ -53,10 +53,10 @@ class FirestoreService {
         .where('routeId', isEqualTo: routeId)
         // This is a filter: only show trips that haven't departed yet.
         .where(
-          'departureTime',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
+          'departureDay',
+          isEqualTo: departureDay, // Use the string date directly),
         )
-        //.where('departureTime', isLessThan: Timestamp.fromDate(endOfDay))
+        //.where('departureDay', isLessThan: Timestamp.fromDate(endOfDay))
         .snapshots()
         .map(
           (snapshot) =>

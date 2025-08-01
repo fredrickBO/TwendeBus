@@ -88,13 +88,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     if (matchingRoute != null) {
+      final dateString = DateFormat('yyyy-MM-dd').format(_selectedDate!);
       // If a route is found, navigate and pass the route object.
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => SearchResultsScreen(
             route: matchingRoute!,
-            searchDate: _selectedDate!,
+            searchDateString: dateString,
           ),
         ),
       );
@@ -354,12 +355,13 @@ class RouteCard extends StatelessWidget {
     // A Container to set a specific width for the card.
     return GestureDetector(
       onTap: () {
+        final dateString = DateFormat('yyyy-MM-dd').format(DateTime.now());
         Navigator.push(
           context,
           // Pass the selected route to the next screen
           MaterialPageRoute(
             builder: (_) =>
-                SearchResultsScreen(route: route, searchDate: DateTime.now()),
+                SearchResultsScreen(route: route, searchDateString: dateString),
           ),
         );
       },

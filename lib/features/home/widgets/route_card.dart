@@ -17,8 +17,10 @@ class RouteCard extends StatelessWidget {
           context,
           // Pass the selected route to the next screen
           MaterialPageRoute(
-            builder: (_) =>
-                SearchResultsScreen(route: route, searchDate: DateTime.now()),
+            builder: (_) => SearchResultsScreen(
+              route: route,
+              searchDateString: DateTime.now().toIso8601String(),
+            ),
           ),
         );
       },

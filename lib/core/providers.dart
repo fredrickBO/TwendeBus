@@ -6,6 +6,7 @@ import 'package:twende_bus_ui/core/models/trip_model.dart';
 import 'package:twende_bus_ui/core/models/user_model.dart';
 import 'package:twende_bus_ui/core/services/auth_service.dart';
 import 'package:twende_bus_ui/core/services/firestore_service.dart';
+import 'package:twende_bus_ui/core/models/search_params.dart';
 
 // Provides a global instance of our AuthService class.
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -44,12 +45,11 @@ final routesProvider = StreamProvider<List<RouteModel>>((ref) {
 //Provides a list of trips for a specific route.
 // The `.family` allows us to pass in the routeId.
 final tripsForRouteProvider =
-    StreamProvider.family<List<TripModel>, Map<String, dynamic>>((
-      ref,
-      searchParams,
-    ) {
+    StreamProvider.family<List<TripModel>, SearchParams>((ref, searchParams) {
       final firestoreService = ref.watch(firestoreServiceProvider);
-      final String routeId = searchParams['routeId'];
-      final DateTime date = searchParams['date'];
-      return firestoreService.streamTripsForRoute(routeId: routeId, date: date);
+      // Pass the string directly to the service
+      return firestoreService.streamTripsForRoute(
+        routeId: searchParams.routeId,
+        departureDay: searchParams.dateString,
+      );
     });
