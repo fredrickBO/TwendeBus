@@ -12,7 +12,10 @@ class TripModel {
   final double fare;
   final int capacity;
   final List<String> bookedSeats; //List of booked seats
+  final Map<String, dynamic>
+  heldSeats; // Map to hold seat numbers and their status
   // In a real app, you might also have a list of booked seat numbers.
+  final GeoPoint? currentLocation;
 
   TripModel({
     required this.id,
@@ -25,6 +28,8 @@ class TripModel {
     required this.fare,
     required this.capacity,
     required this.bookedSeats,
+    required this.heldSeats,
+    this.currentLocation,
   });
 
   factory TripModel.fromFirestore(DocumentSnapshot doc) {
@@ -41,6 +46,8 @@ class TripModel {
       fare: (data['fare'] ?? 0).toDouble(),
       capacity: data['capacity'] ?? 0,
       bookedSeats: List<String>.from(data['bookedSeats'] ?? []),
+      heldSeats: Map<String, dynamic>.from(data['heldSeats'] ?? {}),
+      currentLocation: data['currentLocation'] as GeoPoint?,
     );
   }
 }

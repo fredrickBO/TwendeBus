@@ -7,6 +7,8 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  User? get currentUser => _auth.currentUser;
+
   // A stream that emits the user object when auth state changes (login/logout).
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 

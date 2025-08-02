@@ -1,10 +1,13 @@
 // lib/features/booking/screens/cancel_ride_screen.dart
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:twende_bus_ui/core/models/booking_model.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/cancellation_success_screen.dart';
 
 class CancelRideScreen extends StatefulWidget {
-  const CancelRideScreen({super.key});
+  final BookingModel booking;
+  const CancelRideScreen({super.key, required this.booking});
   @override
   State<CancelRideScreen> createState() => _CancelRideScreenState();
 }
@@ -12,6 +15,35 @@ class CancelRideScreen extends StatefulWidget {
 class _CancelRideScreenState extends State<CancelRideScreen> {
   // A state variable to track if the checkbox is ticked.
   bool _agreedToPolicy = false;
+  bool _isCancelling = false;
+
+  void _confirmCancellation() async {
+    setState(() => _isCancelling = true);
+    try {
+      final functions = FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('cancelBooking');
+      await callable.call(<String, dynamic>{'bookingId': widget.booking.id});
+
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const CancellationSuccessScreen()),
+          (route) => false,
+        );
+      }
+    } on FirebaseFunctionsException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'Cancellation failed.'),
+            backgroundColor: AppColors.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCancelling = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,31 +85,23 @@ class _CancelRideScreenState extends State<CancelRideScreen> {
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton(
-                // The button is only enabled if the user has agreed to the policy.
-                onPressed: _agreedToPolicy
-                    ? () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CancellationSuccessScreen(),
-                          ),
-                          (route) => false, // Remove all previous routes.
-                        );
-                      }
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(
-                    color: _agreedToPolicy
-                        ? AppColors.errorColor
-                        : AppColors.subtleTextColor,
-                  ),
-                  foregroundColor: _agreedToPolicy
-                      ? AppColors.errorColor
-                      : AppColors.subtleTextColor,
-                ),
-                child: const Text("Cancel Now"),
-              ),
+              child: _isCancelling
+                  ? const Center(child: CircularProgressIndicator())
+                  : OutlinedButton(
+                      // The button is only enabled if the user has agreed to the policy.
+                      onPressed: _agreedToPolicy ? _confirmCancellation : null,
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: _agreedToPolicy
+                              ? AppColors.errorColor
+                              : AppColors.subtleTextColor,
+                        ),
+                        foregroundColor: _agreedToPolicy
+                            ? AppColors.errorColor
+                            : AppColors.subtleTextColor,
+                      ),
+                      child: const Text("Cancel Now"),
+                    ),
             ),
           ],
         ),

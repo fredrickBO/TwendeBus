@@ -314,12 +314,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     itemCount: routes.length,
                     itemBuilder: (context, index) {
                       final route = routes[index];
-                      return RouteCard(
-                        route: route,
-                        //startPoint: route.startPoint,
-                        //endPoint: route.endPoint,
-                        //fare: route.fare.toInt().toString(),
-                      );
+                      return RouteCard(route: route);
                     },
                   ),
                   loading: () =>

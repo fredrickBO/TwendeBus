@@ -1,57 +1,52 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
-
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
-
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="description" content="A bus booking application.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="twendebus">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>twendebus</title>
+  <title>TwendeBus</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
 
-    <!-- The core Firebase JS SDK is always required and must be listed first -->
-  <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
-
-  <!-- TODO: Add SDKs for Firebase products that you want to use
-       https://firebase.google.com/docs/web/setup#available-libraries -->
-  <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-firestore.js"></script>
-  
   <script>
-    // Your web app's Firebase configuration
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  </script>
+
+  <!-- ====================================================================== -->
+  <!-- STEP 1: LOAD THE FIREBASE JAVASCRIPT LIBRARIES -->
+  <!-- ====================================================================== -->
+     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+      <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+      <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+      <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-functions-compat.js"></script>
+      <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-check-compat.js"></script>
+
+  <!-- ====================================================================== -->
+  <!-- STEP 2: MANUALLY INITIALIZE FIREBASE WITH YOUR PROJECT'S KEYS -->
+  <!-- ====================================================================== -->
+  <script>
+    // COPY AND PASTE YOUR firebaseConfig OBJECT FROM THE FIREBASE CONSOLE HERE
     var firebaseConfig = {
-      apiKey: "AIzaSy...",
+      apiKey: "AIzaSyCWr4Yme3_wAK0YAk--ekAQf6VDjRG_k0U",
       authDomain: "twendebus-app.firebaseapp.com",
-      // ... and so on
-    };
+      projectId: "twendebus-app",
+      storageBucket: "twendebus-app.firebasestorage.app",
+      messagingSenderId: "859913008310",
+      appId: "1:859913008310:web:3d4510adb6e9d46fc8a217"
+  };
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
   </script>
+
+  <!-- This is the standard Flutter script that loads your app. -->
+  <script src="flutter_bootstrap.js" async></script>
+
 </body>
 </html>

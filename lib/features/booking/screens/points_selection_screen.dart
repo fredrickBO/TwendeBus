@@ -1,13 +1,21 @@
 // lib/features/booking/screens/points_selection_screen.dart
 import 'package:flutter/material.dart';
 import 'package:twende_bus_ui/core/models/route_model.dart';
+import 'package:twende_bus_ui/core/models/trip_model.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/payment_screen.dart';
 
 // Convert the widget to a StatefulWidget to manage user selections.
 class PointsSelectionScreen extends StatefulWidget {
   final RouteModel route;
-  const PointsSelectionScreen({super.key, required this.route});
+  final TripModel trip;
+  final List<String> selectedSeats;
+  const PointsSelectionScreen({
+    super.key,
+    required this.route,
+    required this.trip,
+    required this.selectedSeats,
+  });
 
   @override
   State<PointsSelectionScreen> createState() => _PointsSelectionScreenState();
@@ -94,7 +102,12 @@ class _PointsSelectionScreenState extends State<PointsSelectionScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const PaymentScreen(),
+                            builder: (_) => PaymentScreen(
+                              trip: widget.trip,
+                              selectedSeats: widget.selectedSeats,
+                              startStop: _selectedBoardingPoint!,
+                              endStop: _selectedDeboardingPoint!,
+                            ),
                           ),
                         );
                       }

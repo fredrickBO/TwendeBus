@@ -38,7 +38,7 @@ class SearchResultsScreen extends ConsumerWidget {
             child: BackButton(color: AppColors.textColor),
           ),
         ),
-        title: const Text("Booking"),
+        title: const Text("Available Buses"),
       ),
       // THE FIX: Replace Stack with a simpler Column layout
       body: Column(
@@ -102,6 +102,8 @@ class BusInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final int actualAvailableSeats =
+        trip.capacity - 1 - trip.bookedSeats.length;
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -169,7 +171,7 @@ class BusInfoCard extends StatelessWidget {
                         color: AppColors.subtleTextColor,
                         size: 16,
                       ),
-                      Text("${trip.availableSeats}"),
+                      Text("$actualAvailableSeats"),
                     ],
                   ),
                 ],

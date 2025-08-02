@@ -1,17 +1,33 @@
 // lib/features/booking/screens/payment_screen.dart
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:twende_bus_ui/core/models/booking_model.dart';
+import 'package:twende_bus_ui/core/models/trip_model.dart';
+import 'package:twende_bus_ui/core/providers.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/payment_status_screen.dart';
+import 'package:twende_bus_ui/features/booking/screens/ride_confirmation_screen.dart';
 
 // STEP 1: Convert to a StatefulWidget to manage the selection state.
-class PaymentScreen extends StatefulWidget {
-  const PaymentScreen({super.key});
+class PaymentScreen extends ConsumerStatefulWidget {
+  final TripModel trip;
+  final List<String> selectedSeats;
+  final String startStop;
+  final String endStop;
+  const PaymentScreen({
+    super.key,
+    required this.trip,
+    required this.selectedSeats,
+    required this.startStop,
+    required this.endStop,
+  });
 
   @override
-  State<PaymentScreen> createState() => _PaymentScreenState();
+  ConsumerState<PaymentScreen> createState() => _PaymentScreenState();
 }
 
-class _PaymentScreenState extends State<PaymentScreen> {
+class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   // STEP 2: Create a state variable to hold the currently selected payment method.
   // We initialize it with "Wallet" as the default.
   String _selectedPaymentMethod = "Wallet";
@@ -26,8 +42,72 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
+  bool _isProcessing = false;
+
+  void _confirmPayment() async {
+    setState(() => _isProcessing = true);
+    try {
+      final functions = FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('processBooking');
+
+      final result = await callable.call(<String, dynamic>{
+        'tripId': widget.trip.id,
+        'selectedSeats': widget.selectedSeats,
+        'startStop': widget.startStop,
+        'endStop': widget.endStop,
+      });
+
+      if (!mounted) return;
+
+      if (result.data['success'] == true) {
+        // THE FIX: Correctly handle the new booking data.
+        final String bookingId = result.data['bookingId'];
+        final BookingModel newBooking = await ref
+            .read(firestoreServiceProvider)
+            .getBookingDetails(bookingId);
+
+        // Use the `BuildContext` after the await with a mounted check.
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => RideConfirmationScreen(booking: newBooking),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const PaymentStatusScreen(isSuccess: false),
+          ),
+        );
+      }
+    } on FirebaseFunctionsException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'An error occurred.'),
+            backgroundColor: AppColors.errorColor,
+          ),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const PaymentStatusScreen(isSuccess: false),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final totalFare = widget.trip.fare * widget.selectedSeats.length;
+
     return Scaffold(
       appBar: AppBar(title: const Text("Payment")),
       body: Padding(
@@ -66,25 +146,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
             const Spacer(),
             const Divider(),
-            _buildSummaryRow("Total Fare", "KES 150.00"),
-            _buildSummaryRow("Discount", "KES 0.00"),
+            _buildSummaryRow("Total Fare", "KES ${totalFare.toInt()}"),
+            _buildSummaryRow("Discount", "KES 0"),
             const Divider(),
-            _buildSummaryRow("Total Payable", "KES 150.00", isTotal: true),
+            _buildSummaryRow(
+              "Total Payable",
+              "KES ${totalFare.toInt()}",
+              isTotal: true,
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          const PaymentStatusScreen(isSuccess: true),
+              child: _isProcessing
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: _confirmPayment,
+                      child: Text("Pay KES ${totalFare.toInt()}"),
                     ),
-                  );
-                },
-                child: const Text("Pay KES 150"),
-              ),
             ),
           ],
         ),
