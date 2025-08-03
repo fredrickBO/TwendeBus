@@ -31,7 +31,7 @@ class BookingModel {
       userId: data['userId'] ?? '',
       tripId: data['tripId'] ?? '',
       seatNumbers: List<String>.from(data['seatNumbers'] ?? []),
-      status: data['status'] ?? 'active',
+      status: data['status'] ?? 'confirmed',
       bookingTime: (data['bookingTime'] as Timestamp).toDate(),
       farePaid: (data['farePaid'] ?? 0).toDouble(),
       startStop: data['startStop'] ?? '',

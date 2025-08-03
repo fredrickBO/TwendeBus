@@ -297,9 +297,9 @@
 // }
 
 // lib/features/booking/screens/seat_selection_screen.dart
-import 'package:cloud_functions/cloud_functions.dart'; // <-- THE MAIN FIX: Import the package
+//import 'package:cloud_functions/cloud_functions.dart'; // <-- THE MAIN FIX: Import the package
 import 'package:flutter/material.dart';
-import 'dart:async';
+//import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twende_bus_ui/core/models/route_model.dart';
 import 'package:twende_bus_ui/core/models/trip_model.dart';
@@ -322,125 +322,34 @@ class SeatSelectionScreen extends ConsumerStatefulWidget {
 }
 
 class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
-  final Set<String> _myHeldSeats = {};
-  final Set<String> _isLoadingSeats = {};
+  final Set<String> _selectedSeats = {};
+  //final _isProcessing = false;
 
-  // State for the 3-minute countdown timer
-  Timer? _holdTimer;
-  int _timerSeconds = 180; // 3 minutes
+  void _onSeatTapped(String seatNumber, List<String> bookedSeats) {
+    if (bookedSeats.contains(seatNumber))
+      return; //can't select an already booked seat
 
-  void startTimer() {
-    // Cancel any existing timer before starting a new one.
-    _holdTimer?.cancel();
-    _timerSeconds = 180;
-
-    _holdTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_timerSeconds == 0) {
-        timer.cancel();
-        // When timer ends, release all held seats.
-        _releaseAllHeldSeats();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                "Your session has expired. Seats have been released.",
-              ),
-            ),
-          );
-        }
-      } else {
-        setState(() {
-          _timerSeconds--;
-        });
-      }
-    });
-  }
-
-  void resetTimer() {
-    _holdTimer?.cancel();
     setState(() {
-      _holdTimer = null; // Setting to null will hide the timer text
-    });
-  }
-
-  // Function to release all seats held by the current user for this trip.
-  void _releaseAllHeldSeats() {
-    // Create a copy of the set to avoid issues while iterating and modifying.
-    final seatsToRelease = Set<String>.from(_myHeldSeats);
-    for (var seatNumber in seatsToRelease) {
-      // We can call the release function without awaiting for a faster UI experience.
-      // The server will handle the cleanup.
-      _onSeatTapped(seatNumber);
-    }
-    setState(() {
-      _myHeldSeats.clear();
-    });
-  }
-
-  @override
-  void dispose() {
-    // Crucial: Cancel the timer when the user leaves the screen to prevent memory leaks.
-    _holdTimer?.cancel();
-    // It's also good practice to release any held seats when the user navigates away.
-    _releaseAllHeldSeats();
-    super.dispose();
-  }
-
-  void _onSeatTapped(String seatNumber) async {
-    if (_isLoadingSeats.contains(seatNumber)) return;
-
-    final isAlreadySelectedByMe = _myHeldSeats.contains(seatNumber);
-    setState(() => _isLoadingSeats.add(seatNumber));
-
-    try {
-      final functions = FirebaseFunctions.instance;
-      final callable = functions.httpsCallable(
-        isAlreadySelectedByMe ? 'releaseSeat' : 'holdSeat',
-      );
-
-      final result = await callable.call(<String, dynamic>{
-        'tripId': widget.trip.id,
-        'seatNumber': seatNumber,
-      });
-
-      if (!mounted) return;
-
-      if (result.data['success'] == true) {
-        setState(() {
-          if (isAlreadySelectedByMe) {
-            _myHeldSeats.remove(seatNumber);
-            if (_myHeldSeats.isEmpty) {
-              resetTimer(); // Reset timer if no seats are held
-            }
-          } else {
-            if (_myHeldSeats.isEmpty) {
-              startTimer(); // Start timer if this is the first seat held
-            }
-            _myHeldSeats.add(seatNumber);
-          }
-        });
+      if (_selectedSeats.contains(seatNumber)) {
+        _selectedSeats.remove(seatNumber);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.data['message'] ?? 'Failed to update seat.'),
-            backgroundColor: AppColors.errorColor,
-          ),
-        );
+        _selectedSeats.add(seatNumber);
       }
-    } on FirebaseFunctionsException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message ?? 'An error occurred.'),
-            backgroundColor: AppColors.errorColor,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoadingSeats.remove(seatNumber));
-      }
-    }
+    });
+  }
+
+  // This function is for navigating to the next step, not for booking.
+  void _proceedToPointsSelection(TripModel trip) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PointsSelectionScreen(
+          route: widget.route,
+          trip: trip,
+          selectedSeats: _selectedSeats.toList(),
+        ),
+      ),
+    );
   }
 
   List<String> _generateSeatLayout(int capacity) {
@@ -524,22 +433,8 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                         _buildLegendItem("Available", const Color(0xFFE0E0E0)),
                         _buildLegendItem("Selected", Colors.green),
                         _buildLegendItem("Booked", Colors.blue),
-                        _buildLegendItem("Held", Colors.grey),
                       ],
                     ),
-
-                    // NEW: Display the countdown timer when it's active
-                    if (_holdTimer != null && _holdTimer!.isActive)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Text(
-                          'Seats held for: ${(_timerSeconds ~/ 60).toString().padLeft(2, '0')}:${(_timerSeconds % 60).toString().padLeft(2, '0')}',
-                          style: AppTextStyles.bodyText.copyWith(
-                            color: AppColors.primaryColor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -567,7 +462,8 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                       if (seatLabel == "DRIVER") {
                         return SeatWidget(
                           label: "Driver",
-                          status: SeatStatus.booked,
+                          isBooked: true,
+                          isSelected: false,
                           isDriver: true,
                         );
                       }
@@ -578,22 +474,16 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                         return const SizedBox.shrink();
                       }
 
-                      SeatStatus status;
-                      if (liveTrip.bookedSeats.contains(seatLabel)) {
-                        status = SeatStatus.booked;
-                      } else if (_myHeldSeats.contains(seatLabel)) {
-                        status = SeatStatus.selected;
-                      } else if (liveTrip.heldSeats.containsKey(seatLabel)) {
-                        status = SeatStatus.held;
-                      } else {
-                        status = SeatStatus.available;
-                      }
+                      bool isBooked = liveTrip.bookedSeats.contains(seatLabel);
+                      bool isSelected = _selectedSeats.contains(seatLabel);
 
                       return SeatWidget(
                         label: seatLabel,
-                        status: status,
-                        isLoading: _isLoadingSeats.contains(seatLabel),
-                        onTap: () => _onSeatTapped(seatLabel),
+                        isBooked: isBooked,
+                        isSelected: isSelected,
+                        isDriver: isSelected,
+                        onTap: () =>
+                            _onSeatTapped(seatLabel, liveTrip.bookedSeats),
                       );
                     },
                   ),
@@ -604,29 +494,15 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _myHeldSeats.isNotEmpty
-                        ? () {
-                            _holdTimer?.cancel();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => PointsSelectionScreen(
-                                  route: widget.route,
-                                  trip: liveTrip,
-                                  selectedSeats: _myHeldSeats.toList(),
-                                ),
-                              ),
-                            );
-                          }
+                    onPressed: _selectedSeats.isNotEmpty
+                        ? () => _proceedToPointsSelection(liveTrip)
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryColor,
                       disabledBackgroundColor: AppColors.subtleTextColor
                           .withOpacity(0.5),
                     ),
-                    child: Text(
-                      "Confirm Selection (KES${_myHeldSeats.length * liveTrip.fare.toInt()})",
-                    ),
+                    child: Text("Confirm Selection"),
                   ),
                 ),
               ),
@@ -665,17 +541,17 @@ enum SeatStatus { available, selected, booked, held }
 
 class SeatWidget extends StatelessWidget {
   final String label;
-  final SeatStatus status;
+  final bool isBooked;
+  final bool isSelected;
   final bool isDriver;
-  final bool isLoading;
   final VoidCallback? onTap;
 
   const SeatWidget({
     super.key,
     required this.label,
-    required this.status,
-    this.isDriver = false,
-    this.isLoading = false,
+    required this.isBooked,
+    required this.isSelected,
+    required this.isDriver,
     this.onTap,
   });
 
@@ -684,42 +560,23 @@ class SeatWidget extends StatelessWidget {
     Color color;
     Color contentColor = Colors.white;
 
-    switch (status) {
-      case SeatStatus.selected:
-        color = Colors.green;
-        break;
-      case SeatStatus.booked:
-        color = Colors.blue;
-        break;
-      case SeatStatus.held:
-        color = Colors.grey;
-        break;
-      case SeatStatus.available:
-        color = const Color(0xFFE0E0E0);
-        contentColor = AppColors.textColor;
-        break;
+    if (isBooked) {
+      color = Colors.blue; //Booked
+    } else if (isSelected) {
+      color = Colors.green; //selected by me
+    } else {
+      color = const Color(0xFFE0E0E0);
     }
 
     return GestureDetector(
-      onTap: status == SeatStatus.available || status == SeatStatus.selected
-          ? onTap
-          : null,
+      onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Center(
-          child: isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : isDriver
+          child: isDriver
               ? Icon(Icons.person, color: contentColor, size: 20)
               : Text(
                   label,
