@@ -1,13 +1,19 @@
 // lib/features/wallet/screens/wallet_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:twende_bus_ui/core/providers.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/wallet/screens/top_up_screen.dart';
 
-class WalletScreen extends StatelessWidget {
+class WalletScreen extends ConsumerWidget {
   const WalletScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    //watch providers for live data
+    final userAsync = ref.watch(currentUserProvider);
+    final transactionsAsync = ref.watch(userTransactionsProvider);
     return Scaffold(
       appBar: AppBar(title: const Text("My Wallet")),
       body: ListView(
@@ -33,11 +39,22 @@ class WalletScreen extends StatelessWidget {
                   style: TextStyle(color: Colors.white70),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  "KES 2,560.00",
-                  style: AppTextStyles.headline1.copyWith(
-                    color: Colors.white,
-                    fontSize: 36,
+                //use live data to show balance
+                userAsync.when(
+                  data: (user) => Text(
+                    "KES ${user?.walletBalance.toStringAsFixed(2) ?? '0.00'}",
+                    style: AppTextStyles.headline1.copyWith(
+                      color: Colors.white,
+                      fontSize: 36,
+                    ),
+                  ),
+                  loading: () =>
+                      const CircularProgressIndicator(color: Colors.white),
+                  error: (_, _) => Text(
+                    "Error",
+                    style: AppTextStyles.headline1.copyWith(
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -64,28 +81,46 @@ class WalletScreen extends StatelessWidget {
           ),
           const SizedBox(height: 32),
 
-          // Header for the transactions list.
-          Text("Recent Transactions", style: AppTextStyles.headline2),
-          const SizedBox(height: 12),
-
-          // Static list of transactions for the UI.
-          _buildTransactionTile(
-            isDeposit: true,
-            details: "Top up from M-Pesa",
-            date: "Oct 25, 2024",
-            amount: "500",
-          ),
-          _buildTransactionTile(
-            isDeposit: false,
-            details: "Fare for Westlands trip",
-            date: "Oct 24, 2024",
-            amount: "150",
-          ),
-          _buildTransactionTile(
-            isDeposit: false,
-            details: "Fare for Kasarani trip",
-            date: "Oct 23, 2024",
-            amount: "80",
+          // Use .when() to display the live transaction list.
+          transactionsAsync.when(
+            data: (transList) {
+              if (transList.isEmpty) return const Text("No transactions yet.");
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: transList.length,
+                itemBuilder: (context, index) {
+                  final trans = transList[index];
+                  final isDeposit = trans.amount > 0;
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: Icon(
+                        isDeposit ? Icons.arrow_downward : Icons.arrow_upward,
+                        color: isDeposit
+                            ? AppColors.accentColor
+                            : AppColors.errorColor,
+                      ),
+                      title: Text(trans.details),
+                      subtitle: Text(
+                        DateFormat('MMM d, yyyy').format(trans.timestamp),
+                      ),
+                      trailing: Text(
+                        "${isDeposit ? '+' : ''}KES ${trans.amount.toInt()}",
+                        style: TextStyle(
+                          color: isDeposit
+                              ? AppColors.accentColor
+                              : AppColors.errorColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, __) => const Text("Could not load transactions."),
           ),
         ],
       ),

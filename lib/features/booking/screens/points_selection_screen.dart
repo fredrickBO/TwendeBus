@@ -1,4 +1,5 @@
 // lib/features/booking/screens/points_selection_screen.dart
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:twende_bus_ui/core/models/route_model.dart';
 import 'package:twende_bus_ui/core/models/trip_model.dart';
@@ -38,6 +39,7 @@ class _PointsSelectionScreenState extends State<PointsSelectionScreen> {
   // These state variables will store the user's selection. They are nullable.
   String? _selectedBoardingPoint;
   String? _selectedDeboardingPoint;
+  bool _isProcessing = false;
 
   // This function is called when a user selects a boarding point.
   void _onBoardingPointSelected(String? point) {
@@ -52,6 +54,57 @@ class _PointsSelectionScreenState extends State<PointsSelectionScreen> {
     setState(() {
       _selectedDeboardingPoint = point;
     });
+  }
+
+  // This is the new function that creates the pending booking.
+  void _createBookingAndProceed() async {
+    setState(() => _isProcessing = true);
+    try {
+      final functions = FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('createPendingBooking');
+
+      final result = await callable.call(<String, dynamic>{
+        'tripId': widget.trip.id,
+        'selectedSeats': widget.selectedSeats,
+        'startStop': _selectedBoardingPoint!,
+        'endStop': _selectedDeboardingPoint!,
+      });
+
+      if (!mounted) return;
+
+      if (result.data['success'] == true) {
+        final bookingId = result.data['bookingId'];
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PaymentScreen(
+              bookingId: bookingId,
+              totalFare: widget.trip.fare * widget.selectedSeats.length,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.data['message'] ?? 'Could not create booking.',
+            ),
+            backgroundColor: AppColors.errorColor,
+          ),
+        );
+      }
+    } on FirebaseFunctionsException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'An error occurred.'),
+            backgroundColor: AppColors.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
   }
 
   @override
@@ -95,30 +148,20 @@ class _PointsSelectionScreenState extends State<PointsSelectionScreen> {
             const Spacer(), // Pushes the button to the bottom
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                // The button is only enabled if `canProceed` is true.
-                onPressed: canProceed
-                    ? () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PaymentScreen(
-                              trip: widget.trip,
-                              selectedSeats: widget.selectedSeats,
-                              startStop: _selectedBoardingPoint!,
-                              endStop: _selectedDeboardingPoint!,
-                            ),
-                          ),
-                        );
-                      }
-                    : null, // Setting onPressed to null disables the button.
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  disabledBackgroundColor: AppColors.subtleTextColor
-                      .withOpacity(0.5),
-                ),
-                child: const Text("Proceed"),
-              ),
+              child: _isProcessing
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      // The button is only enabled if `canProceed` is true.
+                      onPressed: canProceed
+                          ? _createBookingAndProceed
+                          : null, // Setting onPressed to null disables the button.
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryColor,
+                        disabledBackgroundColor: AppColors.subtleTextColor
+                            .withOpacity(0.5),
+                      ),
+                      child: const Text("Proceed to Payment"),
+                    ),
             ),
           ],
         ),

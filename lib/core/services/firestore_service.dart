@@ -1,6 +1,7 @@
 // lib/core/services/firestore_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:twende_bus_ui/core/models/booking_model.dart';
+import 'package:twende_bus_ui/core/models/transaction_model.dart';
 import 'package:twende_bus_ui/core/models/trip_model.dart';
 import 'package:twende_bus_ui/core/models/user_model.dart';
 import 'package:twende_bus_ui/core/models/route_model.dart';
@@ -85,6 +86,21 @@ class FirestoreService {
         .map(
           (snapshot) => snapshot.docs
               .map((doc) => BookingModel.fromFirestore(doc))
+              .toList(),
+        );
+  }
+
+  // NEW: Get a live stream of a user's transactions.
+  Stream<List<TransactionModel>> streamUserTransactions(String uid) {
+    return _db
+        .collection('transactions')
+        .where('userId', isEqualTo: uid)
+        .orderBy('timestamp', descending: true)
+        .limit(20) // Get the last 20 transactions
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => TransactionModel.fromFirestore(doc))
               .toList(),
         );
   }

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twende_bus_ui/core/models/booking_model.dart';
 import 'package:twende_bus_ui/core/models/route_model.dart';
+import 'package:twende_bus_ui/core/models/transaction_model.dart';
 import 'package:twende_bus_ui/core/models/trip_model.dart';
 import 'package:twende_bus_ui/core/models/user_model.dart';
 import 'package:twende_bus_ui/core/services/auth_service.dart';
@@ -89,4 +90,13 @@ final routeDetailsProvider = FutureProvider.family<RouteModel, String>((
       .doc(routeId)
       .get()
       .then((doc) => RouteModel.fromFirestore(doc));
+});
+
+// NEW: A provider for the current user's transaction history.
+final userTransactionsProvider = StreamProvider<List<TransactionModel>>((ref) {
+  final uid = ref.watch(authStateProvider).asData?.value?.uid;
+  if (uid != null) {
+    return ref.watch(firestoreServiceProvider).streamUserTransactions(uid);
+  }
+  return Stream.value([]);
 });

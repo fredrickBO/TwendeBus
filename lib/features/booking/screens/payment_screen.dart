@@ -3,24 +3,18 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twende_bus_ui/core/models/booking_model.dart';
-import 'package:twende_bus_ui/core/models/trip_model.dart';
 import 'package:twende_bus_ui/core/providers.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
-import 'package:twende_bus_ui/features/booking/screens/payment_status_screen.dart';
 import 'package:twende_bus_ui/features/booking/screens/ride_confirmation_screen.dart';
 
 // STEP 1: Convert to a StatefulWidget to manage the selection state.
 class PaymentScreen extends ConsumerStatefulWidget {
-  final TripModel trip;
-  final List<String> selectedSeats;
-  final String startStop;
-  final String endStop;
+  final String bookingId;
+  final double totalFare;
   const PaymentScreen({
     super.key,
-    required this.trip,
-    required this.selectedSeats,
-    required this.startStop,
-    required this.endStop,
+    required this.bookingId,
+    required this.totalFare,
   });
 
   @override
@@ -28,6 +22,7 @@ class PaymentScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
+  bool _isProcessing = false;
   // STEP 2: Create a state variable to hold the currently selected payment method.
   // We initialize it with "Wallet" as the default.
   String _selectedPaymentMethod = "Wallet";
@@ -42,71 +37,66 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     }
   }
 
-  bool _isProcessing = false;
-
   void _confirmPayment() async {
     setState(() => _isProcessing = true);
-    try {
-      final functions = FirebaseFunctions.instance;
-      final callable = functions.httpsCallable('processBooking');
 
-      final result = await callable.call(<String, dynamic>{
-        'tripId': widget.trip.id,
-        'selectedSeats': widget.selectedSeats,
-        'startStop': widget.startStop,
-        'endStop': widget.endStop,
-      });
+    // For now, we only implement the Wallet payment.
+    if (_selectedPaymentMethod == "Wallet") {
+      try {
+        final functions = FirebaseFunctions.instance;
+        final callable = functions.httpsCallable('processWalletPayment');
 
-      if (!mounted) return;
+        final result = await callable.call(<String, dynamic>{
+          'bookingId': widget.bookingId,
+        });
 
-      if (result.data['success'] == true) {
-        // THE FIX: Correctly handle the new booking data.
-        final String bookingId = result.data['bookingId'];
-        final BookingModel newBooking = await ref
-            .read(firestoreServiceProvider)
-            .getBookingDetails(bookingId);
+        if (!mounted) return;
 
-        // Use the `BuildContext` after the await with a mounted check.
-        if (mounted) {
+        if (result.data['success'] == true) {
+          final BookingModel confirmedBooking = await ref
+              .watch(firestoreServiceProvider)
+              .getBookingDetails(widget.bookingId);
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(
-              builder: (_) => RideConfirmationScreen(booking: newBooking),
+              builder: (_) => RideConfirmationScreen(booking: confirmedBooking),
             ),
             (route) => false,
           );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.data['message'] ?? 'Payment failed.'),
+              backgroundColor: AppColors.errorColor,
+            ),
+          );
         }
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const PaymentStatusScreen(isSuccess: false),
-          ),
-        );
+      } on FirebaseFunctionsException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.message ?? 'An error occurred.'),
+              backgroundColor: AppColors.errorColor,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isProcessing = false);
       }
-    } on FirebaseFunctionsException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message ?? 'An error occurred.'),
-            backgroundColor: AppColors.errorColor,
-          ),
-        );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const PaymentStatusScreen(isSuccess: false),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
+    } else {
+      // Logic for M-Pesa or Card would go here.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("This payment method is not yet implemented."),
+        ),
+      );
+      setState(() => _isProcessing = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final totalFare = widget.trip.fare * widget.selectedSeats.length;
+    final totalFare = widget.totalFare;
 
     return Scaffold(
       appBar: AppBar(title: const Text("Payment")),
@@ -131,7 +121,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             _buildPaymentMethodTile(
               methodName: "M-Pesa",
               imageAsset: 'assets/images/mpesa_logo.png',
-              subtitle: "Pay with M-Pesa Express",
+              subtitle: "Pay with M-Pesa",
               isSelected: _selectedPaymentMethod == "M-Pesa",
               onChanged: _onPaymentMethodChanged,
             ),

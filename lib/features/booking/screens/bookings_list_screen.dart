@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twende_bus_ui/core/models/booking_model.dart';
+import 'package:twende_bus_ui/core/models/trip_model.dart';
 import 'package:twende_bus_ui/core/providers.dart';
 import 'package:twende_bus_ui/features/booking/widgets/booking_journey_card.dart';
 
@@ -10,7 +11,6 @@ class BookingsListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // This line will now work correctly.
     final bookingsAsync = ref.watch(userBookingsProvider);
 
     return DefaultTabController(
@@ -29,21 +29,32 @@ class BookingsListScreen extends ConsumerWidget {
         ),
         body: bookingsAsync.when(
           data: (bookings) {
-            // Because the provider now has a type, the compiler knows that 'b' is a BookingModel,
-            // so `b.status` is a valid property. The error is gone.
-            final active = bookings.where((b) => b.status == 'active').toList();
-            final completed = bookings
-                .where((b) => b.status == 'completed')
+            // THE FIX: We create a list of FutureBuilders to fetch trip details for filtering.
+            // This is an advanced pattern but necessary to get the departure times.
+            final confirmedBookings = bookings
+                .where((b) => b.status == 'active' || b.status == 'confirmed')
                 .toList();
-            final cancelled = bookings
+            final cancelledBookings = bookings
                 .where((b) => b.status == 'cancelled')
                 .toList();
 
             return TabBarView(
               children: [
-                BookingListView(bookings: active),
-                BookingListView(bookings: completed),
-                BookingListView(bookings: cancelled),
+                // Active Tab
+                BookingListView(
+                  bookings: confirmedBookings,
+                  filter: BookingFilter.active,
+                ),
+                // Completed Tab
+                BookingListView(
+                  bookings: confirmedBookings,
+                  filter: BookingFilter.completed,
+                ),
+                // Cancelled Tab
+                BookingListView(
+                  bookings: cancelledBookings,
+                  filter: BookingFilter.cancelled,
+                ),
               ],
             );
           },
@@ -55,20 +66,60 @@ class BookingsListScreen extends ConsumerWidget {
   }
 }
 
-class BookingListView extends StatelessWidget {
+// An enum to define our filters
+enum BookingFilter { active, completed, cancelled }
+
+class BookingListView extends ConsumerWidget {
   final List<BookingModel> bookings;
-  const BookingListView({super.key, required this.bookings});
+  final BookingFilter filter;
+  const BookingListView({
+    super.key,
+    required this.bookings,
+    required this.filter,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (bookings.isEmpty) {
-      return const Center(child: Text("No bookings found in this category."));
+      return Center(child: Text("No bookings found in this category."));
     }
+
+    // We build the list based on the filter.
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: bookings.length,
       itemBuilder: (context, index) {
-        return BookingJourneyCard(booking: bookings[index]);
+        final booking = bookings[index];
+
+        // For Active/Completed, we need to check the trip's departure time.
+        if (filter == BookingFilter.active ||
+            filter == BookingFilter.completed) {
+          final tripFuture = ref
+              .watch(firestoreServiceProvider)
+              .getTripDetails(booking.tripId);
+          return FutureBuilder<TripModel>(
+            future: tripFuture,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData)
+                return const SizedBox.shrink(); // Don't show while loading
+              final trip = snapshot.data!;
+              final now = DateTime.now();
+
+              if (filter == BookingFilter.active &&
+                  trip.departureTime.isAfter(now)) {
+                return BookingJourneyCard(booking: booking);
+              }
+              if (filter == BookingFilter.completed &&
+                  trip.departureTime.isBefore(now)) {
+                return BookingJourneyCard(booking: booking);
+              }
+              return const SizedBox.shrink(); // Hide if it doesn't match the time filter
+            },
+          );
+        } else {
+          // For Cancelled, we don't need to check the time.
+          return BookingJourneyCard(booking: booking);
+        }
       },
     );
   }
