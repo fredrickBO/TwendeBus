@@ -1,11 +1,14 @@
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 const logger = require("firebase-functions/logger");
+const axios = require("axios");
 
 admin.initializeApp();
 const db = admin.firestore();
 
+const mpesaCallbackURL = "https://us-central1-twendebus-app.cloudfunctions.net/mpesaCallback";
+const corsOptions = { cors: true };
 /**
  * Creates a new booking with a 'pending' status for 5 minutes and
  * immediately marks the seats as booked.
@@ -154,4 +157,93 @@ exports.processWalletPayment = onCall(async (request) => {
 
     return { success: true, message: "Payment successful." };
   });
+});
+
+// --- M-PESA TOP-UP FUNCTION ---
+exports.initiateMpesaTopUp = onCall(corsOptions, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+  const { amount, phoneNumber } = request.data;
+  if (!amount || !phoneNumber || amount <= 0) throw new HttpsError("invalid-argument", "Valid amount and phone number are required.");
+
+  const consumerKey = "WWnxG1241TdBc3K5NGcJ6HGDxdjnsccUL95iTPbVuTCDsYbZ";
+  const consumerSecret = "eBZVGo8RXNvWq5RwTo6e1ZHAk1MYo7aMOyK83YiGwFcJu5PMCSYvy7pb9UV3bVFT";
+  const shortCode = 174379;
+  const passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
+
+  const auth = "Basic " + Buffer.from(consumerKey + ":" + consumerSecret).toString("base64");
+  const tokenUrl = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
+
+  let accessToken;
+  try {
+    const tokenResponse = await axios.get(tokenUrl, { headers: { Authorization: auth } });
+    accessToken = tokenResponse.data.access_token;
+  } catch (err) {
+    logger.error("Failed to get M-Pesa token:", err.response ? err.response.data : err.message);
+    throw new HttpsError("internal", "Could not get M-Pesa access token.");
+  }
+
+  const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, -3);
+  const password = Buffer.from(shortCode + passkey + timestamp).toString("base64");
+  const stkUrl = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
+  
+  const stkPayload = {
+    BusinessShortCode: shortCode, Password: password, Timestamp: timestamp,
+    TransactionType: "CustomerPayBillOnline", Amount: amount, PartyA: phoneNumber,
+    PartyB: shortCode, PhoneNumber: phoneNumber, CallBackURL: mpesaCallbackURL,
+    AccountReference: "TwendeBusTopUp", TransactionDesc: "Wallet Top Up",
+  };
+
+  try {
+    const stkResponse = await axios.post(stkUrl, stkPayload, { headers: { Authorization: "Bearer " + accessToken } });
+    const { MerchantRequestID, CheckoutRequestID, ResponseCode } = stkResponse.data;
+    if (ResponseCode === "0" || ResponseCode === 0) {
+      const transactionRef = db.collection("transactions").doc(CheckoutRequestID);
+      await transactionRef.set({
+        userId: request.auth.uid, amount: amount, phoneNumber: phoneNumber, status: "pending",
+        type: "deposit", checkoutRequestId: CheckoutRequestID, merchantRequestId: MerchantRequestID,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(), details: "Wallet Top Up via M-Pesa",
+      });
+      return { success: true, message: "Request sent. Please check your phone." };
+    } else {
+      throw new Error(stkResponse.data.ResponseDescription || "Unknown error from M-Pesa");
+    }
+  } catch (err) {
+    logger.error("STK Push failed:", err.response ? err.response.data : err.message);
+    throw new HttpsError("internal", "Failed to initiate M-Pesa payment.");
+  }
+});
+
+// --- M-PESA CALLBACK FUNCTION (This will now work) ---
+exports.mpesaCallback = onRequest(corsOptions, async (req, res) => {
+  logger.info("M-Pesa Callback received:", req.body);
+  if (!req.body || !req.body.Body || !req.body.Body.stkCallback) {
+    logger.error("Invalid callback format received.");
+    res.status(200).send("OK");
+    return;
+  }
+  const callbackData = req.body.Body.stkCallback;
+  const resultCode = callbackData.ResultCode;
+  const checkoutRequestId = callbackData.CheckoutRequestID;
+  const transactionRef = db.collection("transactions").doc(checkoutRequestId);
+  const transactionDoc = await transactionRef.get();
+  if (!transactionDoc.exists) {
+    logger.error("Callback for unknown transaction received:", checkoutRequestId);
+    res.status(200).send("OK");
+    return;
+  }
+  if (resultCode === 0) {
+    const transactionData = transactionDoc.data();
+    const userId = transactionData.userId;
+    const amount = transactionData.amount;
+    const userRef = db.collection("users").doc(userId);
+    await db.runTransaction(async (transaction) => {
+      transaction.update(transactionRef, { status: "completed" });
+      transaction.update(userRef, { walletBalance: admin.firestore.FieldValue.increment(amount) });
+    });
+    logger.info(`Successfully updated wallet for user ${userId} with amount ${amount}.`);
+  } else {
+    await transactionRef.update({ status: "failed", resultCode: resultCode });
+    logger.error("M-Pesa transaction failed for:", checkoutRequestId, "Result code:", resultCode);
+  }
+  res.status(200).send("OK");
 });

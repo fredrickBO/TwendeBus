@@ -97,6 +97,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   @override
   Widget build(BuildContext context) {
     final totalFare = widget.totalFare;
+    final userAsync = ref.watch(currentUserProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text("Payment")),
@@ -109,13 +110,22 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             const SizedBox(height: 24),
 
             // STEP 4: Connect the state to the UI widgets.
-            _buildPaymentMethodTile(
-              methodName: "Wallet",
-              icon: Icons.account_balance_wallet,
-              subtitle: "Available Balance: KES 2,560",
-              // `isSelected` is now dynamically calculated.
-              isSelected: _selectedPaymentMethod == "Wallet",
-              onChanged: _onPaymentMethodChanged,
+            userAsync.when(
+              data: (user) => _buildPaymentMethodTile(
+                methodName: "Wallet",
+                icon: Icons.account_balance_wallet,
+                // Use the live balance from the user object.
+                subtitle:
+                    "Available Balance: KES ${user?.walletBalance.toStringAsFixed(2) ?? '0.00'}",
+                isSelected: _selectedPaymentMethod == "Wallet",
+                onChanged: _onPaymentMethodChanged,
+              ),
+              // Show a simple placeholder while the balance is loading.
+              loading: () =>
+                  const Card(child: ListTile(title: Text("Loading Wallet..."))),
+              error: (err, stack) => const Card(
+                child: ListTile(title: Text("Could not load wallet.")),
+              ),
             ),
 
             _buildPaymentMethodTile(
