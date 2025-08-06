@@ -6,6 +6,7 @@ import 'package:twende_bus_ui/core/models/booking_model.dart';
 import 'package:twende_bus_ui/core/providers.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/ride_confirmation_screen.dart';
+import 'package:twende_bus_ui/shared/widgets/bottom_nav_bar.dart';
 
 // STEP 1: Convert to a StatefulWidget to manage the selection state.
 class PaymentScreen extends ConsumerStatefulWidget {
@@ -35,6 +36,37 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         _selectedPaymentMethod = newMethod;
       });
     }
+  }
+
+  // NEW: A helper function to show the M-Pesa phone number dialog.
+  Future<String?> _showMpesaPhoneNumberDialog() async {
+    final phoneController = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Enter M-Pesa Number'),
+          content: TextField(
+            controller: phoneController,
+            autofocus: true,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(hintText: 'e.g., 254712345678'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            ElevatedButton(
+              child: const Text('Confirm'),
+              onPressed: () {
+                Navigator.of(context).pop(phoneController.text);
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _confirmPayment() async {
@@ -83,8 +115,63 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       } finally {
         if (mounted) setState(() => _isProcessing = false);
       }
+    } else if (_selectedPaymentMethod == "M-Pesa") {
+      final mpesaNumber = await _showMpesaPhoneNumberDialog();
+
+      //if user provided phone number, proceed
+      if (mpesaNumber != null && mpesaNumber.isNotEmpty) {
+        setState(() => _isProcessing = true);
+        try {
+          final functions = FirebaseFunctions.instance;
+          final callable = functions.httpsCallable(
+            'initiateMpesaBookingPayment',
+          );
+
+          // Call the new function with the bookingId.
+          final result = await callable.call(<String, dynamic>{
+            'bookingId': widget.bookingId,
+            'phoneNumber': mpesaNumber,
+          });
+
+          if (!mounted) return;
+
+          if (result.data['success'] == true) {
+            // Show a message and wait for the callback to confirm.
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result.data['message']),
+                backgroundColor: AppColors.accentColor,
+              ),
+            );
+            // Navigate the user to the main bookings list where they will see the status update.
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const BottomNavBar()),
+              (route) => route.isFirst,
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result.data['message'] ?? 'Payment failed.'),
+                backgroundColor: AppColors.errorColor,
+              ),
+            );
+          }
+        } on FirebaseFunctionsException catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(e.message ?? 'An error occurred.'),
+                backgroundColor: AppColors.errorColor,
+              ),
+            );
+          }
+        } finally {
+          if (mounted) setState(() => _isProcessing = false);
+        }
+      }
     } else {
-      // Logic for M-Pesa or Card would go here.
+      // Logic for Card would go here.
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("This payment method is not yet implemented."),

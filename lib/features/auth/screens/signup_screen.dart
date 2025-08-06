@@ -20,6 +20,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _dateOfBirthController = TextEditingController();
+  final _phoneController = TextEditingController();
   bool _isLoading = false;
 
   bool _isPasswordVisible = false;
@@ -40,6 +41,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       password: _passwordController.text,
       firstName: _firstNameController.text,
       lastName: _lastNameController.text,
+      phoneNumber: _phoneController.text,
     );
 
     // Check if the widget is still on the screen before proceeding.
@@ -72,6 +74,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _dateOfBirthController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -153,6 +156,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) => (value == null || !value.contains('@'))
                     ? 'Please enter a valid email'
+                    : null,
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _phoneController,
+                decoration: const InputDecoration(labelText: 'Phone Number'),
+                keyboardType: TextInputType.phone,
+                validator: (value) => (value == null || value.isEmpty)
+                    ? 'Please enter your phone number'
                     : null,
               ),
               const SizedBox(height: 20),

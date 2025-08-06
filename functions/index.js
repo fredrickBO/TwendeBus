@@ -247,3 +247,103 @@ exports.mpesaCallback = onRequest(corsOptions, async (req, res) => {
   }
   res.status(200).send("OK");
 });
+
+//function for paying for a booking directly with MPESA
+exports.initiateMpesaBookingPayment = onCall({cors:true}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+  
+  const { bookingId, phoneNumber } = request.data;
+  const userId=request.auth.uid;
+
+  if (!bookingId || !phoneNumber) throw new HttpsError("invalid-argument", "Valid bookingId and phoneNumber is required.");
+
+  //get the booking to find out the amount to charge
+  const bookingRef = db.collection("bookings").doc(bookingId);
+  const bookingDoc = await bookingRef.get();
+  if (!bookingDoc.exists) throw new HttpsError("not-found", "Booking not found.");
+  
+  const amount = bookingDoc.data().farePaid;
+  // We'll assume the user's phone number is stored on their user profile.
+  //const userDoc = await db.collection("users").doc(userId).get();
+  //const phoneNumber = userDoc.data().phoneNumber; // Assumes you store this as 254...
+
+  //if (!phoneNumber) throw new HttpsError("failed-precondition", "User phone number not found.");
+
+  // --- M-Pesa API Call (This is the same logic as the top-up) ---
+  const consumerKey = "WWnxG1241TdBc3K5NGcJ6HGDxdjnsccUL95iTPbVuTCDsYbZ";
+  const consumerSecret = "eBZVGo8RXNvWq5RwTo6e1ZHAk1MYo7aMOyK83YiGwFcJu5PMCSYvy7pb9UV3bVFT";
+  const shortCode = 174379;
+  const passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
+
+
+  let accessToken;
+  try {
+    const tokenResponse = await axios.get(tokenUrl, { headers: { Authorization: auth } });
+    accessToken = tokenResponse.data.access_token;
+  } catch (err) {
+    logger.error("Failed to get M-Pesa token:", err.response ? err.response.data : err.message);
+    throw new HttpsError("internal", "Could not get M-Pesa access token.");
+  }
+
+    // ... (logic to create timestamp and password is the same)
+  const callbackURL = "https://us-central1-twendebus-app.cloudfunctions.net/mpesaBookingCallback"; // A new callback URL
+  const stkUrl = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
+  
+  const stkPayload = {
+    BusinessShortCode: shortCode, Password: password, Timestamp: timestamp,
+    TransactionType: "CustomerPayBillOnline", Amount: amount, PartyA: phoneNumber,
+    PartyB: shortCode, PhoneNumber: phoneNumber, CallBackURL: mpesaCallbackURL,
+    AccountReference: "TwendeBusTopUp", TransactionDesc: "Wallet Top Up",
+  };
+
+  try {
+    const stkResponse = await axios.post(stkUrl, stkPayload, { headers: { Authorization: "Bearer " + accessToken } });
+    const { MerchantRequestID, CheckoutRequestID, ResponseCode } = stkResponse.data;
+    if (ResponseCode === "0" || ResponseCode === 0) {
+      await bookingRef.update({
+        mpesaCheckoutRequestId: CheckoutRequestID,
+        mpesaMerchantRequestId: MerchantRequestID,
+      });
+      return {success:true, message:"Request sent. Please check your phone."};
+    } else {
+      throw new Error(stkResponse.data.ResponseDescription);
+    }
+  } catch (err) {
+    logger.error("STK Push failed:", err.response ? err.response.data : err.message);
+    throw new HttpsError("internal", "Failed to initiate M-Pesa payment.");
+  }
+});
+// --- NEW CALLBACK FUNCTION for booking payments with direct mpesa---
+exports.mpesaBookingCallback = onRequest(corsOptions, async (req, res) => {
+  logger.info("M-Pesa Booking Callback received:", req.body);
+
+  if (!req.body || !req.body.Body || !req.body.Body.stkCallback) {
+    res.status(200).send("OK"); return;
+  }
+  const callbackData = req.body.Body.stkCallback;
+  const resultCode = callbackData.ResultCode;
+  const checkoutRequestId = callbackData.CheckoutRequestID;
+
+  // Find the booking using the CheckoutRequestID.
+  const bookingsQuery = db.collection("bookings").where("mpesaCheckoutRequestId", "==", checkoutRequestId);
+  const querySnapshot = await bookingsQuery.get();
+
+  if (querySnapshot.empty) {
+    logger.error("Callback for unknown booking received:", checkoutRequestId);
+    res.status(200).send("OK"); return;
+  }
+  
+  const bookingDoc = querySnapshot.docs[0];
+
+  if (resultCode === 0) {
+    // Payment was successful. Confirm the booking.
+    await bookingDoc.ref.update({ status: "confirmed" });
+    logger.info(`Successfully confirmed booking ${bookingDoc.id} via M-Pesa.`);
+  } else {
+    // Payment failed. We can either mark it as 'failed' or let the janitor function handle it.
+    // For simplicity, we'll let the janitor cancel it.
+    logger.error("M-Pesa booking payment failed for:", checkoutRequestId, "Result code:", resultCode);
+  }
+
+  res.status(200).send("OK");
+});

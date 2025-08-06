@@ -18,12 +18,9 @@ class AuthService {
     required String password,
     required String firstName,
     required String lastName,
+    required String phoneNumber,
   }) async {
     final String cleanEmail = email.trim();
-    // print('--- DEBUG START ---');
-    // print('Sending email to Firebase: |$cleanEmail|');
-    // print('Email as character codes: ${cleanEmail.codeUnits}');
-    // print('--- DEBUG END ---');
 
     try {
       UserCredential userCredential = await _auth
@@ -39,6 +36,7 @@ class AuthService {
           'firstName': firstName,
           'lastName': lastName,
           'email': cleanEmail,
+          'phoneNumber': phoneNumber.trim(),
           'role': 'passenger',
           'createdAt': Timestamp.now(),
           'walletBalance': 0, // Initialize wallet balance

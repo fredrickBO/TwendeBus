@@ -326,8 +326,9 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
   //final _isProcessing = false;
 
   void _onSeatTapped(String seatNumber, List<String> bookedSeats) {
-    if (bookedSeats.contains(seatNumber))
+    if (bookedSeats.contains(seatNumber)) {
       return; //can't select an already booked seat
+    }
 
     setState(() {
       if (_selectedSeats.contains(seatNumber)) {

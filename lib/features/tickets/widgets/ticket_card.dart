@@ -25,11 +25,12 @@ class TicketCard extends ConsumerWidget {
       child: FutureBuilder<TripModel>(
         future: tripDetailsFuture,
         builder: (context, tripSnapshot) {
-          if (!tripSnapshot.hasData)
+          if (!tripSnapshot.hasData) {
             return const SizedBox(
               height: 100,
               child: Center(child: CircularProgressIndicator()),
             );
+          }
           final trip = tripSnapshot.data!;
 
           // THE FIX: Now fetch the route details using the trip's routeId.

@@ -100,8 +100,9 @@ class BookingListView extends ConsumerWidget {
           return FutureBuilder<TripModel>(
             future: tripFuture,
             builder: (context, snapshot) {
-              if (!snapshot.hasData)
+              if (!snapshot.hasData) {
                 return const SizedBox.shrink(); // Don't show while loading
+              }
               final trip = snapshot.data!;
               final now = DateTime.now();
 
