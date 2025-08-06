@@ -165,8 +165,8 @@ exports.initiateMpesaTopUp = onCall(corsOptions, async (request) => {
   const { amount, phoneNumber } = request.data;
   if (!amount || !phoneNumber || amount <= 0) throw new HttpsError("invalid-argument", "Valid amount and phone number are required.");
 
-  const consumerKey = "WWnxG1241TdBc3K5NGcJ6HGDxdjnsccUL95iTPbVuTCDsYbZ";
-  const consumerSecret = "eBZVGo8RXNvWq5RwTo6e1ZHAk1MYo7aMOyK83YiGwFcJu5PMCSYvy7pb9UV3bVFT";
+  const consumerKey = "l7Z4ekM9CfdmktZDXVR24rARp4pGyxQaiE03GCFw2pQdC91v";
+  const consumerSecret = "CbLDoGHLwZvVs3Zdsx3s7mNSGovNaP6YpGFJ1fdLBoqiKCPFDAMEY49GuGXmGGk8";
   const shortCode = 174379;
   const passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
 
@@ -261,7 +261,8 @@ exports.initiateMpesaBookingPayment = onCall({cors:true}, async (request) => {
   const bookingRef = db.collection("bookings").doc(bookingId);
   const bookingDoc = await bookingRef.get();
   if (!bookingDoc.exists) throw new HttpsError("not-found", "Booking not found.");
-  
+  if (bookingDoc.data().userId !== userId) throw new HttpsError("permission-denied", "You can only pay for your own bookings.");
+
   const amount = bookingDoc.data().farePaid;
   // We'll assume the user's phone number is stored on their user profile.
   //const userDoc = await db.collection("users").doc(userId).get();
@@ -270,11 +271,13 @@ exports.initiateMpesaBookingPayment = onCall({cors:true}, async (request) => {
   //if (!phoneNumber) throw new HttpsError("failed-precondition", "User phone number not found.");
 
   // --- M-Pesa API Call (This is the same logic as the top-up) ---
-  const consumerKey = "WWnxG1241TdBc3K5NGcJ6HGDxdjnsccUL95iTPbVuTCDsYbZ";
-  const consumerSecret = "eBZVGo8RXNvWq5RwTo6e1ZHAk1MYo7aMOyK83YiGwFcJu5PMCSYvy7pb9UV3bVFT";
+  const consumerKey = "l7Z4ekM9CfdmktZDXVR24rARp4pGyxQaiE03GCFw2pQdC91v";
+  const consumerSecret = "CbLDoGHLwZvVs3Zdsx3s7mNSGovNaP6YpGFJ1fdLBoqiKCPFDAMEY49GuGXmGGk8";
   const shortCode = 174379;
   const passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
-
+    
+  const auth = "Basic " + Buffer.from(consumerKey + ":" + consumerSecret).toString("base64");
+  const tokenUrl = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
 
   let accessToken;
   try {
