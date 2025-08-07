@@ -88,15 +88,23 @@ class ProfileScreen extends ConsumerWidget {
             Column(
               children: [
                 // A circular widget perfect for profile pictures.
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 50,
                   backgroundColor: AppColors.cardColor,
-                  // A placeholder person icon.
-                  child: Icon(
-                    Icons.person,
-                    size: 50,
-                    color: AppColors.subtleTextColor,
-                  ),
+                  backgroundImage:
+                      (user?.profilePictureUrl != null &&
+                          user!.profilePictureUrl!.isNotEmpty)
+                      ? NetworkImage(user.profilePictureUrl!)
+                      : null,
+                  child:
+                      (user?.profilePictureUrl == null ||
+                          user!.profilePictureUrl!.isEmpty)
+                      ? const Icon(
+                          Icons.person,
+                          size: 50,
+                          color: AppColors.subtleTextColor,
+                        )
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 // The user's full name

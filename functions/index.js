@@ -9,6 +9,49 @@ const db = admin.firestore();
 
 const mpesaCallbackURL = "https://us-central1-twendebus-app.cloudfunctions.net/mpesaCallback";
 const corsOptions = { cors: true };
+
+
+// --- A powerful, reusable helper function for M-Pesa STK Push ---
+async function initiateStkPush(amount, phoneNumber, accountReference, transactionDesc, callbackURL) {
+  const consumerKey = "h9IL64UUaapuOGO1AGe62dpiVqPZGG6SScKTGb1G0aJjqKhr";
+  const consumerSecret = "xRyW5iliTfTTnX5oDuSiF5P3pQMj5POIR3oxr6BKOjGc3OqeWLesgJGDm4GRAwi4";
+  const shortCode = 174379;
+  const passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
+
+  const auth = "Basic " + Buffer.from(consumerKey + ":" + consumerSecret).toString("base64");
+  const tokenUrl = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
+
+  let accessToken;
+  try {
+    const tokenResponse = await axios.get(tokenUrl, { headers: { Authorization: auth } });
+    accessToken = tokenResponse.data.access_token;
+  } catch (err) {
+    logger.error("Failed to get M-Pesa token:", err.response ? err.response.data : err.message);
+    throw new HttpsError("internal", "Could not get M-Pesa access token.");
+  }
+
+  const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, -3);
+  const password = Buffer.from(shortCode + passkey + timestamp).toString("base64");
+  const stkUrl = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
+
+  const stkPayload = {
+    BusinessShortCode: shortCode, Password: password, Timestamp: timestamp,
+    TransactionType: "CustomerPayBillOnline", Amount: amount, PartyA: phoneNumber,
+    PartyB: shortCode, PhoneNumber: phoneNumber, CallBackURL: callbackURL,
+    AccountReference: accountReference, TransactionDesc: transactionDesc,
+  };
+
+  logger.info("Sending STK Push with payload:", stkPayload);
+
+  try {
+    const stkResponse = await axios.post(stkUrl, stkPayload, { headers: { Authorization: `Bearer ${accessToken}` } });
+    return stkResponse.data;
+  } catch (err) {
+    logger.error("STK Push failed:", err.response ? err.response.data : err.message);
+    throw new HttpsError("internal", "Failed to initiate M-Pesa payment.");
+  }
+}
+
 /**
  * Creates a new booking with a 'pending' status for 5 minutes and
  * immediately marks the seats as booked.
@@ -159,61 +202,31 @@ exports.processWalletPayment = onCall(async (request) => {
   });
 });
 
-// --- M-PESA TOP-UP FUNCTION ---
+// --- M-PESA TOP-UP FUNCTION (Now uses the helper) ---
 exports.initiateMpesaTopUp = onCall(corsOptions, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+
   const { amount, phoneNumber } = request.data;
   if (!amount || !phoneNumber || amount <= 0) throw new HttpsError("invalid-argument", "Valid amount and phone number are required.");
 
-  const consumerKey = "l7Z4ekM9CfdmktZDXVR24rARp4pGyxQaiE03GCFw2pQdC91v";
-  const consumerSecret = "CbLDoGHLwZvVs3Zdsx3s7mNSGovNaP6YpGFJ1fdLBoqiKCPFDAMEY49GuGXmGGk8";
-  const shortCode = 174379;
-  const passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
-
-  const auth = "Basic " + Buffer.from(consumerKey + ":" + consumerSecret).toString("base64");
-  const tokenUrl = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
-
-  let accessToken;
-  try {
-    const tokenResponse = await axios.get(tokenUrl, { headers: { Authorization: auth } });
-    accessToken = tokenResponse.data.access_token;
-  } catch (err) {
-    logger.error("Failed to get M-Pesa token:", err.response ? err.response.data : err.message);
-    throw new HttpsError("internal", "Could not get M-Pesa access token.");
-  }
-
-  const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, -3);
-  const password = Buffer.from(shortCode + passkey + timestamp).toString("base64");
-  const stkUrl = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
+  const callbackURL = "https://us-central1-twendebus-app.cloudfunctions.net/mpesaTopUpCallback";
+  const stkResponse = await initiateStkPush(amount, phoneNumber, "TwendeBusTopUp", "Wallet Top Up", callbackURL);
   
-  const stkPayload = {
-    BusinessShortCode: shortCode, Password: password, Timestamp: timestamp,
-    TransactionType: "CustomerPayBillOnline", Amount: amount, PartyA: phoneNumber,
-    PartyB: shortCode, PhoneNumber: phoneNumber, CallBackURL: mpesaCallbackURL,
-    AccountReference: "TwendeBusTopUp", TransactionDesc: "Wallet Top Up",
-  };
-
-  try {
-    const stkResponse = await axios.post(stkUrl, stkPayload, { headers: { Authorization: "Bearer " + accessToken } });
-    const { MerchantRequestID, CheckoutRequestID, ResponseCode } = stkResponse.data;
-    if (ResponseCode === "0" || ResponseCode === 0) {
-      const transactionRef = db.collection("transactions").doc(CheckoutRequestID);
-      await transactionRef.set({
-        userId: request.auth.uid, amount: amount, phoneNumber: phoneNumber, status: "pending",
-        type: "deposit", checkoutRequestId: CheckoutRequestID, merchantRequestId: MerchantRequestID,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(), details: "Wallet Top Up via M-Pesa",
-      });
-      return { success: true, message: "Request sent. Please check your phone." };
-    } else {
-      throw new Error(stkResponse.data.ResponseDescription || "Unknown error from M-Pesa");
-    }
-  } catch (err) {
-    logger.error("STK Push failed:", err.response ? err.response.data : err.message);
-    throw new HttpsError("internal", "Failed to initiate M-Pesa payment.");
+  const { MerchantRequestID, CheckoutRequestID, ResponseCode } = stkResponse;
+  if (ResponseCode === "0" || ResponseCode === 0) {
+    const transactionRef = db.collection("transactions").doc(CheckoutRequestID);
+    await transactionRef.set({
+      userId: request.auth.uid, amount, phoneNumber, status: "pending", type: "deposit",
+      checkoutRequestId: CheckoutRequestID, merchantRequestId: MerchantRequestID,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(), details: "Wallet Top Up via M-Pesa",
+    });
+    return { success: true, message: "Request sent. Please check your phone." };
+  } else {
+    throw new HttpsError("internal", stkResponse.ResponseDescription || "Unknown M-Pesa error");
   }
 });
 
-// --- M-PESA CALLBACK FUNCTION (This will now work) ---
+// --- M-PESA wallet top up CALLBACK FUNCTION (This will now work) ---
 exports.mpesaCallback = onRequest(corsOptions, async (req, res) => {
   logger.info("M-Pesa Callback received:", req.body);
   if (!req.body || !req.body.Body || !req.body.Body.stkCallback) {
@@ -248,74 +261,33 @@ exports.mpesaCallback = onRequest(corsOptions, async (req, res) => {
   res.status(200).send("OK");
 });
 
-//function for paying for a booking directly with MPESA
-exports.initiateMpesaBookingPayment = onCall({cors:true}, async (request) => {
+// --- M-PESA BOOKING PAYMENT FUNCTION (Now uses the helper) ---
+exports.initiateMpesaBookingPayment = onCall(corsOptions, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
-  
+
   const { bookingId, phoneNumber } = request.data;
-  const userId=request.auth.uid;
-
-  if (!bookingId || !phoneNumber) throw new HttpsError("invalid-argument", "Valid bookingId and phoneNumber is required.");
-
-  //get the booking to find out the amount to charge
+  if (!bookingId || !phoneNumber) throw new HttpsError("invalid-argument", "Valid bookingId and phoneNumber are required.");
+  
   const bookingRef = db.collection("bookings").doc(bookingId);
   const bookingDoc = await bookingRef.get();
   if (!bookingDoc.exists) throw new HttpsError("not-found", "Booking not found.");
-  if (bookingDoc.data().userId !== userId) throw new HttpsError("permission-denied", "You can only pay for your own bookings.");
+  if (bookingDoc.data().userId !== request.auth.uid) throw new HttpsError("permission-denied", "You can only pay for your own bookings.");
 
   const amount = bookingDoc.data().farePaid;
-  // We'll assume the user's phone number is stored on their user profile.
-  //const userDoc = await db.collection("users").doc(userId).get();
-  //const phoneNumber = userDoc.data().phoneNumber; // Assumes you store this as 254...
-
-  //if (!phoneNumber) throw new HttpsError("failed-precondition", "User phone number not found.");
-
-  // --- M-Pesa API Call (This is the same logic as the top-up) ---
-  const consumerKey = "l7Z4ekM9CfdmktZDXVR24rARp4pGyxQaiE03GCFw2pQdC91v";
-  const consumerSecret = "CbLDoGHLwZvVs3Zdsx3s7mNSGovNaP6YpGFJ1fdLBoqiKCPFDAMEY49GuGXmGGk8";
-  const shortCode = 174379;
-  const passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
-    
-  const auth = "Basic " + Buffer.from(consumerKey + ":" + consumerSecret).toString("base64");
-  const tokenUrl = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
-
-  let accessToken;
-  try {
-    const tokenResponse = await axios.get(tokenUrl, { headers: { Authorization: auth } });
-    accessToken = tokenResponse.data.access_token;
-  } catch (err) {
-    logger.error("Failed to get M-Pesa token:", err.response ? err.response.data : err.message);
-    throw new HttpsError("internal", "Could not get M-Pesa access token.");
-  }
-
-    // ... (logic to create timestamp and password is the same)
-  const callbackURL = "https://us-central1-twendebus-app.cloudfunctions.net/mpesaBookingCallback"; // A new callback URL
-  const stkUrl = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
+  const callbackURL = "https://us-central1-twendebus-app.cloudfunctions.net/mpesaBookingCallback";
+  const stkResponse = await initiateStkPush(amount, phoneNumber, `Booking ${bookingId.substring(0,5)}`, "Bus Booking Payment", callbackURL);
   
-  const stkPayload = {
-    BusinessShortCode: shortCode, Password: password, Timestamp: timestamp,
-    TransactionType: "CustomerPayBillOnline", Amount: amount, PartyA: phoneNumber,
-    PartyB: shortCode, PhoneNumber: phoneNumber, CallBackURL: mpesaCallbackURL,
-    AccountReference: "TwendeBusTopUp", TransactionDesc: "Wallet Top Up",
-  };
-
-  try {
-    const stkResponse = await axios.post(stkUrl, stkPayload, { headers: { Authorization: "Bearer " + accessToken } });
-    const { MerchantRequestID, CheckoutRequestID, ResponseCode } = stkResponse.data;
-    if (ResponseCode === "0" || ResponseCode === 0) {
-      await bookingRef.update({
-        mpesaCheckoutRequestId: CheckoutRequestID,
-        mpesaMerchantRequestId: MerchantRequestID,
-      });
-      return {success:true, message:"Request sent. Please check your phone."};
-    } else {
-      throw new Error(stkResponse.data.ResponseDescription);
-    }
-  } catch (err) {
-    logger.error("STK Push failed:", err.response ? err.response.data : err.message);
-    throw new HttpsError("internal", "Failed to initiate M-Pesa payment.");
+  const { MerchantRequestID, CheckoutRequestID, ResponseCode } = stkResponse;
+  if (ResponseCode === "0" || ResponseCode === 0) {
+    await bookingRef.update({
+      mpesaCheckoutRequestId: CheckoutRequestID, mpesaMerchantRequestId: MerchantRequestID,
+    });
+    return { success: true, message: "Request sent. Please check your phone." };
+  } else {
+    throw new HttpsError("internal", stkResponse.ResponseDescription || "Unknown M-Pesa error");
   }
 });
+
 // --- NEW CALLBACK FUNCTION for booking payments with direct mpesa---
 exports.mpesaBookingCallback = onRequest(corsOptions, async (req, res) => {
   logger.info("M-Pesa Booking Callback received:", req.body);

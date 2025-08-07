@@ -1,5 +1,8 @@
 // lib/core/services/firestore_service.dart
+import 'dart:io';
+import 'dart:typed_data'; // Needed for web bytes
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:twende_bus_ui/core/models/booking_model.dart';
 import 'package:twende_bus_ui/core/models/transaction_model.dart';
 import 'package:twende_bus_ui/core/models/trip_model.dart';
@@ -8,6 +11,8 @@ import 'package:twende_bus_ui/core/models/route_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseStorage _storage =
+      FirebaseStorage.instance; // Create an instance of Firebase Storage
 
   // Get a real-time stream of a single user's data.
   Stream<UserModel> streamUser(String uid) {
@@ -56,6 +61,71 @@ class FirestoreService {
           (snapshot) =>
               snapshot.docs.map((doc) => TripModel.fromFirestore(doc)).toList(),
         );
+  }
+
+  // --- NEW: Method to upload a user's profile image ---
+  // For mobile platforms (Android/iOS)
+  Future<String> uploadProfileImageFromFile(String uid, File image) async {
+    try {
+      final ref = _storage.ref().child('profile_images').child('$uid.jpg');
+      final uploadTask = await ref.putFile(image);
+      final String downloadUrl = await uploadTask.ref.getDownloadURL();
+
+      // THE FIX: This is the critical missing line.
+      // It saves the new image URL to the user's document in Firestore.
+      await _db.collection('users').doc(uid).update({
+        'profilePictureUrl': downloadUrl,
+      });
+
+      return downloadUrl;
+    } catch (e) {
+      print("Error uploading profile image from file: $e");
+      return "";
+    }
+  }
+
+  // For the web platform
+  Future<String> uploadProfileImageFromBytes(
+    String uid,
+    Uint8List imageBytes,
+  ) async {
+    try {
+      final ref = _storage.ref().child('profile_images').child('$uid.jpg');
+      final uploadTask = await ref.putData(
+        imageBytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      final String downloadUrl = await uploadTask.ref.getDownloadURL();
+
+      // THE FIX: This is the critical missing line.
+      // It saves the new image URL to the user's document in Firestore.
+      await _db.collection('users').doc(uid).update({
+        'profilePictureUrl': downloadUrl,
+      });
+
+      return downloadUrl;
+    } catch (e) {
+      print("Error uploading profile image from bytes: $e");
+      return "";
+    }
+  }
+
+  // --- NEW: Method to update user's profile data ---
+  Future<void> updateUserData(
+    String uid,
+    String firstName,
+    String lastName,
+    String phoneNumber,
+  ) async {
+    try {
+      await _db.collection('users').doc(uid).update({
+        'firstName': firstName,
+        'lastName': lastName,
+        'phoneNumber': phoneNumber,
+      });
+    } catch (e) {
+      print("Error updating user data: $e");
+    }
   }
 
   // This function fetches the details for a single trip, one time.

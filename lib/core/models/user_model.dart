@@ -8,6 +8,7 @@ class UserModel {
   final String email;
   final String phoneNumber;
   final double walletBalance;
+  final String? profilePictureUrl;
 
   UserModel({
     required this.uid,
@@ -16,6 +17,7 @@ class UserModel {
     required this.email,
     required this.phoneNumber,
     required this.walletBalance,
+    required this.profilePictureUrl,
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -27,6 +29,7 @@ class UserModel {
       email: data['email'] ?? '',
       phoneNumber: data['phoneNumber'] ?? '',
       walletBalance: (data['walletBalance'] ?? 0).toDouble(),
+      profilePictureUrl: data['profilePictureUrl'],
     );
   }
 }
