@@ -13,7 +13,8 @@ class AboutUsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            const FlutterLogo(size: 80), // Placeholder for TwendeBus logo
+            //TwendeBus logo
+            Image.asset('assets/images/onboarding_main.png', width: 160),
             const SizedBox(height: 16),
             Text("TwendeBus", style: AppTextStyles.headline1),
             Text("Version 1.0.0", style: AppTextStyles.labelText),

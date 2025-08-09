@@ -135,6 +135,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
                   children: [
+                    // THE FIX: Add the CircleAvatar here.
+                    userAsyncValue.when(
+                      data: (user) {
+                        final imageUrl = user?.profilePictureUrl;
+                        final hasImage =
+                            imageUrl != null && imageUrl.isNotEmpty;
+                        return CircleAvatar(
+                          radius:
+                              24, // A slightly smaller avatar for the home screen
+                          backgroundColor: AppColors.cardColor,
+                          backgroundImage: hasImage
+                              ? NetworkImage(imageUrl!)
+                              : null,
+                          child: !hasImage
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 24,
+                                  color: AppColors.subtleTextColor,
+                                )
+                              : null,
+                        );
+                      },
+                      // Show a simple placeholder while loading.
+                      loading: () => const CircleAvatar(
+                        radius: 24,
+                        backgroundColor: AppColors.cardColor,
+                      ),
+                      error: (err, stack) => const CircleAvatar(
+                        radius: 24,
+                        child: Icon(Icons.error),
+                      ),
+                    ),
+                    const SizedBox(
+                      width: 12,
+                    ), // Add some space between the avatar and text
                     // This Column holds the welcome text.
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,7 +180,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             color: AppColors.subtleTextColor,
                           ),
                         ),
-                        // The user's name is displayed here.
                         userAsyncValue.when(
                           data: (user) => Text(
                             user?.firstName ?? 'User',
@@ -153,16 +187,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               fontSize: 24,
                             ),
                           ),
-                          loading: () => const SizedBox(
-                            height: 28,
-                            width: 28,
-                            child: CircularProgressIndicator(),
-                          ),
-                          error: (error, stack) => Text('Error: $error'),
+                          loading: () =>
+                              const SizedBox.shrink(), // No need for a second spinner
+                          error: (error, stack) => const Text('Error'),
                         ),
                       ],
                     ),
-                    // Spacer expands to fill the available space, pushing the icons to the right.
                     const Spacer(),
                     // An icon button for notifications.
                     IconButton(

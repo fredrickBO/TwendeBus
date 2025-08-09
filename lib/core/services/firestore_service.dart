@@ -174,4 +174,39 @@ class FirestoreService {
               .toList(),
         );
   }
+
+  // NEW: Get a stream of all trips that have a status of 'in-progress'.
+  Stream<List<TripModel>> streamAllActiveTrips() {
+    return _db
+        .collection('trips')
+        // In a real app, you would have a status field like 'in-progress'
+        // For now, we'll just get all trips. You can add the .where() clause later.
+        // .where('status', isEqualTo: 'in-progress')
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => TripModel.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // THE FIX: Add this new method to fetch a single user's details.
+  Future<UserModel> getUserDetails(String uid) async {
+    final docSnapshot = await _db.collection('users').doc(uid).get();
+    if (docSnapshot.exists) {
+      return UserModel.fromFirestore(docSnapshot);
+    } else {
+      // Throw an error if the user (driver) document is not found.
+      throw Exception("User not found for ID: $uid");
+    }
+  }
+
+  // THE FIX: Add this missing method to get a single route's details.
+  Future<RouteModel> getRouteDetails(String routeId) async {
+    final docSnapshot = await _db.collection('routes').doc(routeId).get();
+    if (docSnapshot.exists) {
+      return RouteModel.fromFirestore(docSnapshot);
+    } else {
+      throw Exception("Route not found for ID: $routeId");
+    }
+  }
 }

@@ -10,15 +10,10 @@ import 'package:twende_bus_ui/features/booking/screens/ride_details_screen.dart'
 
 class BookingJourneyCard extends ConsumerWidget {
   final BookingModel booking;
-
   const BookingJourneyCard({super.key, required this.booking});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // This code remains the same, but it's now calling the centralized provider.
-    final tripDetailsFuture = ref
-        .watch(firestoreServiceProvider)
-        .getTripDetails(booking.tripId);
     final isCancelled = booking.status == 'cancelled';
 
     return GestureDetector(
@@ -36,9 +31,14 @@ class BookingJourneyCard extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 16),
         elevation: 1,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        // THE FIX: We will use a Consumer inside the FutureBuilder to solve the race condition.
         child: FutureBuilder<TripModel>(
-          future: tripDetailsFuture,
+          // First, we only fetch the trip details.
+          future: ref
+              .read(firestoreServiceProvider)
+              .getTripDetails(booking.tripId),
           builder: (context, tripSnapshot) {
+            // While waiting for the TRIP, show a simple loading state.
             if (tripSnapshot.connectionState == ConnectionState.waiting) {
               return const SizedBox(
                 height: 140,
@@ -48,101 +48,113 @@ class BookingJourneyCard extends ConsumerWidget {
             if (tripSnapshot.hasError || !tripSnapshot.hasData) {
               return const SizedBox(
                 height: 140,
-                child: Center(child: Text("Could not load trip details.")),
+                child: Center(child: Text("Could not load trip.")),
               );
             }
 
             final trip = tripSnapshot.data!;
-            // This now correctly calls the provider from its central location.
-            final routeDetails = ref.watch(routeDetailsProvider(trip.routeId));
 
-            return routeDetails.when(
-              data: (route) {
-                return Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Row(
+            // Now that we HAVE the trip, we can safely use its `routeId`
+            // to fetch the route details. We use a Consumer for this.
+            return Consumer(
+              builder: (context, ref, child) {
+                final routeAsyncValue = ref.watch(
+                  routeDetailsProvider(trip.routeId),
+                );
+
+                return routeAsyncValue.when(
+                  data: (route) {
+                    // Now we have BOTH the trip and the route. We can build the UI.
+                    return Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
                         children: [
-                          _buildPoint(route.startPoint, booking.startStop),
-                          const Spacer(),
-                          _buildDottedLine(),
-                          Column(
+                          Row(
+                            children: [
+                              _buildPoint(route.startPoint, booking.startStop),
+                              const Spacer(),
+                              _buildDottedLine(),
+                              Column(
+                                children: [
+                                  const Icon(
+                                    Icons.directions_bus,
+                                    color: AppColors.subtleTextColor,
+                                  ),
+                                  Text(
+                                    DateFormat(
+                                      'h:mm a',
+                                    ).format(trip.departureTime),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.subtleTextColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              _buildDottedLine(),
+                              const Spacer(),
+                              _buildPoint(
+                                route.endPoint,
+                                booking.endStop,
+                                alignRight: true,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          const Divider(),
+                          const SizedBox(height: 12),
+                          Row(
                             children: [
                               const Icon(
-                                Icons.directions_bus,
+                                Icons.calendar_today,
+                                size: 16,
                                 color: AppColors.subtleTextColor,
                               ),
+                              const SizedBox(width: 4),
                               Text(
-                                DateFormat('h:mm a').format(trip.departureTime),
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: AppColors.subtleTextColor,
+                                DateFormat(
+                                  'MMM d, yyyy',
+                                ).format(trip.departureTime),
+                                style: AppTextStyles.labelText,
+                              ),
+                              const SizedBox(width: 16),
+                              const Icon(
+                                Icons.person,
+                                size: 16,
+                                color: AppColors.subtleTextColor,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "${booking.seatNumbers.length}",
+                                style: AppTextStyles.labelText,
+                              ),
+                              const Spacer(),
+                              Text(
+                                "KES. ${booking.farePaid.toInt()}",
+                                style: AppTextStyles.bodyText.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: isCancelled
+                                      ? AppColors.errorColor
+                                      : AppColors.textColor,
                                 ),
                               ),
                             ],
                           ),
-                          _buildDottedLine(),
-                          const Spacer(),
-                          _buildPoint(
-                            route.endPoint,
-                            booking.endStop,
-                            alignRight: true,
-                          ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      const Divider(),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_today,
-                            size: 16,
-                            color: AppColors.subtleTextColor,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat(
-                              'MMM d, yyyy',
-                            ).format(trip.departureTime),
-                            style: AppTextStyles.labelText,
-                          ),
-                          const SizedBox(width: 16),
-                          const Icon(
-                            Icons.person,
-                            size: 16,
-                            color: AppColors.subtleTextColor,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            "${booking.seatNumbers.length}",
-                            style: AppTextStyles.labelText,
-                          ),
-                          const Spacer(),
-                          Text(
-                            "KES. ${booking.farePaid.toInt()}",
-                            style: AppTextStyles.bodyText.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: isCancelled
-                                  ? AppColors.errorColor
-                                  : AppColors.textColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    );
+                  },
+                  // While waiting for the ROUTE, show a loading state.
+                  loading: () => const SizedBox(
+                    height: 140,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  error: (err, stack) => const SizedBox(
+                    height: 140,
+                    child: Center(child: Text("Could not load route.")),
                   ),
                 );
               },
-              loading: () => const SizedBox(
-                height: 140,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (err, stack) => const SizedBox(
-                height: 140,
-                child: Center(child: Text("Could not load route details.")),
-              ),
             );
           },
         ),

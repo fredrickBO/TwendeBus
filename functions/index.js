@@ -322,3 +322,37 @@ exports.mpesaBookingCallback = onRequest(corsOptions, async (req, res) => {
 
   res.status(200).send("OK");
 });
+
+// --- NEW FUNCTION for fetching directions from Google Maps API ---
+exports.getDirections = onCall({ cors: true }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  const { originLat, originLng, destLat, destLng } = request.data;
+  const apiKey = "AIzaSyCWr4Yme3_wAK0YAk--ekAQf6VDjRG_k0U"; // The same key you used in index.html
+
+  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originLat},${originLng}&destination=${destLat},${destLng}&key=${apiKey}`;
+
+  try {
+    const response = await axios.get(url);
+    const data = response.data;
+
+    if (data.status === 'OK') {
+      const route = data.routes[0];
+      const leg = route.legs[0];
+      
+      return {
+        success: true,
+        points: route.overview_polyline.points, // The encoded polyline
+        durationText: leg.duration.text, // e.g., "5 mins"
+        distanceText: leg.distance.text, // e.g., "1.2 km"
+      };
+    } else {
+      throw new HttpsError("not-found", data.error_message || "Could not fetch directions.");
+    }
+  } catch (error) {
+    logger.error("Directions API error:", error);
+    throw new HttpsError("internal", "Failed to get directions from Google Maps API.");
+  }
+});

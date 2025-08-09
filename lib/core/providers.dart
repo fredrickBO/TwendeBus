@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twende_bus_ui/core/models/booking_model.dart';
+import 'package:twende_bus_ui/core/models/ride_details_view_model.dart';
 import 'package:twende_bus_ui/core/models/route_model.dart';
 import 'package:twende_bus_ui/core/models/transaction_model.dart';
 import 'package:twende_bus_ui/core/models/trip_model.dart';
@@ -100,3 +101,46 @@ final userTransactionsProvider = StreamProvider<List<TransactionModel>>((ref) {
   }
   return Stream.value([]);
 });
+
+// NEW: A provider for the list of all active trips.
+final allActiveTripsProvider = StreamProvider<List<TripModel>>((ref) {
+  return ref.watch(firestoreServiceProvider).streamAllActiveTrips();
+});
+// THE FIX: Add the missing provider for fetching a single user's details.
+final userDetailsProvider = FutureProvider.family<UserModel, String>((
+  ref,
+  userId,
+) {
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  return firestoreService.getUserDetails(userId);
+});
+// THE FIX: A single, robust provider to aggregate all data for the Ride Details screen.
+final rideDetailsProvider =
+    FutureProvider.family<RideDetailsViewModel, BookingModel>((
+      ref,
+      booking,
+    ) async {
+      final firestoreService = ref.read(firestoreServiceProvider);
+
+      // 1. First, get the trip details.
+      final trip = await firestoreService.getTripDetails(booking.tripId);
+
+      // 2. Now that we have the trip, we can get the routeId and driverId.
+      // We can fetch the route and driver in parallel to be more efficient.
+      final routeFuture = firestoreService.getRouteDetails(
+        trip.routeId,
+      ); // We will add this method
+      final driverFuture = firestoreService.getUserDetails(trip.driverId);
+
+      // 3. Wait for both the route and driver to finish loading.
+      final route = await routeFuture;
+      final driver = await driverFuture;
+
+      // 4. Return a single object containing all the data.
+      return RideDetailsViewModel(
+        booking: booking,
+        trip: trip,
+        route: route,
+        driver: driver,
+      );
+    });

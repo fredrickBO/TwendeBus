@@ -18,7 +18,7 @@ class FaqSupportScreen extends StatelessWidget {
             children: <Widget>[
               ListTile(
                 title: Text(
-                  "Navigate to the home screen, select a route, choose an upcoming trip, select your seat, and confirm your booking by paying from your wallet.",
+                  "Navigate to the home screen, select a route, choose an upcoming trip, select your seat, and confirm your booking by paying from your wallet or MPESA.",
                   style: AppTextStyles.labelText,
                 ),
               ),
@@ -63,7 +63,7 @@ class FaqSupportScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.phone, color: AppColors.primaryColor),
             title: const Text("Call Us"),
-            subtitle: const Text("+254 712 345 678"),
+            subtitle: const Text("+254 108288888"),
             onTap: () {},
           ),
         ],
