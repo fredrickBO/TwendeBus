@@ -1,32 +1,60 @@
 // lib/features/notifications/screens/notifications_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:twende_bus_ui/core/providers.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
+  @override
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // After the screen is built, mark all notifications as read.
+    // We add a small delay to ensure the user is logged in.
+    Future.delayed(const Duration(seconds: 1), () {
+      final uid = ref.read(authServiceProvider).currentUser?.uid;
+      if (uid != null) {
+        ref.read(firestoreServiceProvider).markNotificationsAsRead(uid);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final notificationsAsync = ref.watch(userNotificationsProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text("Notifications")),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: const [
-          NotificationItem(
-            date: "02 July 2025",
-            time: "08:52 AM",
-            title: "Confirmation Alert",
-            body:
-                "Your recent booking was canceled. Your refund is being processed. This should take at least 2 hours.",
-          ),
-          NotificationItem(
-            date: "17 June 2025",
-            time: "08:30 AM",
-            title: "Confirmation Alert",
-            body:
-                "Your refund is being processed. This should take at least 2 hours.",
-          ),
-        ],
+      body: notificationsAsync.when(
+        data: (notifications) {
+          if (notifications.isEmpty)
+            return const Center(child: Text("You have no notifications."));
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: notifications.length,
+            itemBuilder: (context, index) {
+              final notif = notifications[index];
+              return NotificationItem(
+                // Pass the live data to the item widget
+                date: DateFormat('d MMMM yyyy').format(notif.timestamp),
+                time: DateFormat('h:mm a').format(notif.timestamp),
+                title: notif.title,
+                body: notif.body,
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, __) =>
+            const Center(child: Text("Could not load notifications.")),
       ),
     );
   }

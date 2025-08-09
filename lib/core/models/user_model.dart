@@ -9,6 +9,7 @@ class UserModel {
   final String phoneNumber;
   final double walletBalance;
   final String? profilePictureUrl;
+  final bool notificationsEnabled;
 
   UserModel({
     required this.uid,
@@ -18,6 +19,7 @@ class UserModel {
     required this.phoneNumber,
     required this.walletBalance,
     required this.profilePictureUrl,
+    required this.notificationsEnabled,
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -30,6 +32,8 @@ class UserModel {
       phoneNumber: data['phoneNumber'] ?? '',
       walletBalance: (data['walletBalance'] ?? 0).toDouble(),
       profilePictureUrl: data['profilePictureUrl'],
+      notificationsEnabled:
+          data['notificationsEnabled'] ?? true, // Default to true
     );
   }
 }

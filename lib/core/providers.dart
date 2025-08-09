@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twende_bus_ui/core/models/booking_model.dart';
+import 'package:twende_bus_ui/core/models/notification_model.dart';
 import 'package:twende_bus_ui/core/models/ride_details_view_model.dart';
 import 'package:twende_bus_ui/core/models/route_model.dart';
 import 'package:twende_bus_ui/core/models/transaction_model.dart';
@@ -81,17 +82,24 @@ final userBookingsProvider = StreamProvider<List<BookingModel>>((ref) {
   return Stream.value([]);
 });
 
+// THE FIX: The provider now calls our robust service method.
 final routeDetailsProvider = FutureProvider.family<RouteModel, String>((
   ref,
   routeId,
 ) {
-  // This is a simplified service call. In a real app, you'd add this to FirestoreService.
-  return FirebaseFirestore.instance
-      .collection('routes')
-      .doc(routeId)
-      .get()
-      .then((doc) => RouteModel.fromFirestore(doc));
+  return ref.watch(firestoreServiceProvider).getRouteDetails(routeId);
 });
+// final routeDetailsProvider = FutureProvider.family<RouteModel, String>((
+//   ref,
+//   routeId,
+// ) {
+//   // This is a simplified service call. In a real app, you'd add this to FirestoreService.
+//   return FirebaseFirestore.instance
+//       .collection('routes')
+//       .doc(routeId)
+//       .get()
+//       .then((doc) => RouteModel.fromFirestore(doc));
+// });
 
 // NEW: A provider for the current user's transaction history.
 final userTransactionsProvider = StreamProvider<List<TransactionModel>>((ref) {
@@ -144,3 +152,14 @@ final rideDetailsProvider =
         driver: driver,
       );
     });
+
+// NEW: A provider for the current user's notification list.
+final userNotificationsProvider = StreamProvider<List<NotificationModel>>((
+  ref,
+) {
+  final uid = ref.watch(authStateProvider).asData?.value?.uid;
+  if (uid != null) {
+    return ref.watch(firestoreServiceProvider).streamUserNotifications(uid);
+  }
+  return Stream.value([]);
+});

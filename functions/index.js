@@ -52,6 +52,8 @@ async function initiateStkPush(amount, phoneNumber, accountReference, transactio
   }
 }
 
+
+
 /**
  * Creates a new booking with a 'pending' status for 5 minutes and
  * immediately marks the seats as booked.
@@ -199,6 +201,14 @@ exports.processWalletPayment = onCall(async (request) => {
     });
 
     return { success: true, message: "Payment successful." };
+  }).then(() => {
+    // This block runs after the transaction is successful.
+    createNotification(
+      userId,
+      "Booking Confirmed!",
+      `Your booking for trip ${bookingId.substring(0,5)}... has been confirmed.`
+    );
+    return { success: true, message: "Payment successful." };
   });
 });
 
@@ -311,8 +321,14 @@ exports.mpesaBookingCallback = onRequest(corsOptions, async (req, res) => {
   const bookingDoc = querySnapshot.docs[0];
 
   if (resultCode === 0) {
-    // Payment was successful. Confirm the booking.
+    // Payment was successful. Confirm the booking AND create a notification.
     await bookingDoc.ref.update({ status: "confirmed" });
+    const bookingData = bookingDoc.data();
+    createNotification(
+      bookingData.userId,
+      "Booking Confirmed!",
+      `Your M-Pesa payment was successful and your booking ${bookingDoc.id.substring(0,5)}... is confirmed.`
+    );
     logger.info(`Successfully confirmed booking ${bookingDoc.id} via M-Pesa.`);
   } else {
     // Payment failed. We can either mark it as 'failed' or let the janitor function handle it.
@@ -355,4 +371,83 @@ exports.getDirections = onCall({ cors: true }, async (request) => {
     logger.error("Directions API error:", error);
     throw new HttpsError("internal", "Failed to get directions from Google Maps API.");
   }
+});
+
+// --- NEW FUNCTION for cancelling a booking and processing refunds ---
+exports.cancelBooking = onCall(corsOptions, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+
+  const { bookingId } = request.data;
+  const userId = request.auth.uid;
+  
+  const bookingRef = db.collection("bookings").doc(bookingId);
+  const userRef = db.collection("users").doc(userId);
+
+  return db.runTransaction(async (transaction) => {
+    const bookingDoc = await transaction.get(bookingRef);
+    const userDoc = await transaction.get(userRef);
+
+    if (!bookingDoc.exists) throw new HttpsError("not-found", "Booking not found.");
+    if (bookingDoc.data().userId !== userId) throw new HttpsError("permission-denied", "You can only cancel your own bookings.");
+    if (bookingDoc.data().status !== 'confirmed' && bookingDoc.data().status !== 'active') {
+      throw new HttpsError("failed-precondition", "This booking cannot be cancelled.");
+    }
+
+    const bookingData = bookingDoc.data();
+    const tripRef = db.collection("trips").doc(bookingData.tripId);
+    const tripDoc = await transaction.get(tripRef);
+
+    if (!tripDoc.exists) throw new HttpsError("not-found", "Associated trip not found.");
+    
+    const tripData = tripDoc.data();
+    const userData = userDoc.data();
+    
+    // --- CANCELLATION POLICY LOGIC ---
+    const departureTime = tripData.departureTime.toDate();
+    const now = new Date();
+    // Difference in hours
+    const hoursDifference = (departureTime.getTime() - now.getTime()) / 3600000;
+
+    let refundAmount = 0;
+    if (hoursDifference >= 5) {
+      refundAmount = bookingData.farePaid; // 100% refund
+    } else if (hoursDifference >= 1) {
+      refundAmount = bookingData.farePaid * 0.5; // 50% refund
+    }
+    // If less than 1 hour, refundAmount remains 0.
+
+    // --- DATABASE UPDATES ---
+    // 1. Refund the user's wallet if applicable.
+    if (refundAmount > 0) {
+      transaction.update(userRef, { 
+        walletBalance: admin.firestore.FieldValue.increment(refundAmount) 
+      });
+      // Create a refund transaction record for their history.
+      const transactionRef = db.collection("transactions").doc();
+      transaction.set(transactionRef, {
+        userId: userId, amount: refundAmount, type: "refund",
+        details: `Refund for booking ${bookingId.substring(0, 5)}...`,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // 2. Update the booking status to 'cancelled'.
+    transaction.update(bookingRef, { status: "cancelled" });
+
+    // 3. Return the seats to the trip's available pool.
+    transaction.update(tripRef, {
+        bookedSeats: admin.firestore.FieldValue.arrayRemove(...bookingData.seatNumbers),
+        availableSeats: admin.firestore.FieldValue.increment(bookingData.seatNumbers.length),
+    });
+    
+    return { success: true, message: `Booking cancelled. A refund of KES ${refundAmount.toFixed(2)} has been processed to your wallet.` };
+  }).then(() => {
+    // Create notification after successful cancellation.
+    createNotification(
+      userId,
+      "Booking Cancelled",
+      `Your booking ${bookingId.substring(0,5)}... has been cancelled. Your refund of KES ${refundAmount.toFixed(2)} is being processed.`
+    );
+    return { success: true, message: `Booking cancelled. A refund of KES ${refundAmount.toFixed(2)} has been processed to your wallet.` };
+  });
 });

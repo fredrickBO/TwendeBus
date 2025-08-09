@@ -4,6 +4,7 @@ import 'dart:typed_data'; // Needed for web bytes
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:twende_bus_ui/core/models/booking_model.dart';
+import 'package:twende_bus_ui/core/models/notification_model.dart';
 import 'package:twende_bus_ui/core/models/transaction_model.dart';
 import 'package:twende_bus_ui/core/models/trip_model.dart';
 import 'package:twende_bus_ui/core/models/user_model.dart';
@@ -208,5 +209,42 @@ class FirestoreService {
     } else {
       throw Exception("Route not found for ID: $routeId");
     }
+  }
+
+  // NEW: Update the user's notification preference.
+  Future<void> updateNotificationSetting(String uid, bool isEnabled) async {
+    await _db.collection('users').doc(uid).update({
+      'notificationsEnabled': isEnabled,
+    });
+  }
+
+  // NEW: Get a real-time stream of a user's notifications.
+  Stream<List<NotificationModel>> streamUserNotifications(String uid) {
+    return _db
+        .collection('notifications')
+        .where('userId', isEqualTo: uid)
+        .orderBy('timestamp', descending: true)
+        .limit(30) // Get the last 30 notifications
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => NotificationModel.fromFirestore(doc))
+              .toList(),
+        );
+  }
+
+  // NEW: Mark all unread notifications as read.
+  Future<void> markNotificationsAsRead(String uid) async {
+    final querySnapshot = await _db
+        .collection('notifications')
+        .where('userId', isEqualTo: uid)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    final batch = _db.batch();
+    for (final doc in querySnapshot.docs) {
+      batch.update(doc.reference, {'isRead': true});
+    }
+    await batch.commit();
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:twende_bus_ui/core/models/booking_model.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/cancellation_success_screen.dart';
+import 'package:twende_bus_ui/shared/widgets/bottom_nav_bar.dart';
 
 class CancelRideScreen extends StatefulWidget {
   final BookingModel booking;
@@ -22,12 +23,23 @@ class _CancelRideScreenState extends State<CancelRideScreen> {
     try {
       final functions = FirebaseFunctions.instance;
       final callable = functions.httpsCallable('cancelBooking');
-      await callable.call(<String, dynamic>{'bookingId': widget.booking.id});
+      final result = await callable.call(<String, dynamic>{
+        'bookingId': widget.booking.id,
+      });
 
-      if (mounted) {
+      if (mounted && result.data['success'] == true) {
+        // Show the success message from the backend.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.data['message']),
+            backgroundColor: AppColors.accentColor,
+          ),
+        );
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const CancellationSuccessScreen()),
+          MaterialPageRoute(
+            builder: (_) => const BottomNavBar(),
+          ), // Go back to main app
           (route) => false,
         );
       }

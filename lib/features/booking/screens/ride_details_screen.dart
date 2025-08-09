@@ -78,7 +78,7 @@ class _RideDetailsScreenState extends ConsumerState<RideDetailsScreen> {
         "Error: Stop coordinates not found for '$startStopName' or '$endStopName'. Please update the map.",
       );
       setState(() {
-        _eta = "Route error";
+        _eta = "Calculating....";
       });
       return; // Stop the function if we don't have the coordinates.
     }
@@ -162,95 +162,107 @@ class _RideDetailsScreenState extends ConsumerState<RideDetailsScreen> {
     final tripAsyncValue = ref.watch(tripStreamProvider(widget.booking.tripId));
 
     return Scaffold(
-      // The AppBar is now part of the main screen, not the sheet.
       appBar: AppBar(title: const Text("Ride Details")),
+      // THE FIX: Use a nested .when() structure to safely load all data.
       body: tripAsyncValue.when(
         data: (trip) {
-          final busLocation = LatLng(
-            trip.currentLocation?.latitude ?? -1.286389,
-            trip.currentLocation?.longitude ?? 36.817223,
-          );
+          // Now that we have the trip, we can fetch the route details.
+          final routeAsyncValue = ref.watch(routeDetailsProvider(trip.routeId));
 
-          // THE FIX: Use a Stack to layer the map and the draggable sheet.
-          return Stack(
-            children: [
-              // Layer 1: The Google Map takes up the full space.
-              GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: busLocation,
-                  zoom: 14.0,
-                ),
-                polylines: _polylines,
-                markers: {
-                  Marker(markerId: MarkerId(trip.id), position: busLocation),
-                  Marker(
-                    markerId: MarkerId(widget.booking.startStop),
-                    position: stopCoordinates[widget.booking.startStop]!,
-                    icon: BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueGreen,
-                    ),
-                  ),
-                  Marker(
-                    markerId: MarkerId(widget.booking.endStop),
-                    position: stopCoordinates[widget.booking.endStop]!,
-                    icon: BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueRed,
-                    ),
-                  ),
-                },
-                onMapCreated: (controller) => _mapController = controller,
-                // Add padding to the bottom so the Google logo is visible above the sheet
-                padding: const EdgeInsets.only(bottom: 250),
-              ),
+          return routeAsyncValue.when(
+            data: (route) {
+              final busLocation = LatLng(
+                trip.currentLocation?.latitude ?? -1.286389,
+                trip.currentLocation?.longitude ?? 36.817223,
+              );
 
-              // Layer 2: The DraggableScrollableSheet
-              DraggableScrollableSheet(
-                initialChildSize: 0.35, // Starts at 35% of the screen height
-                minChildSize: 0.35, // Cannot be dragged smaller
-                maxChildSize: 0.8, // Can be dragged up to 80%
-                builder: (BuildContext context, ScrollController scrollController) {
-                  // This is the content of the draggable panel.
-                  return Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(24.0),
-                        topRight: Radius.circular(24.0),
+              // Your Stack-based UI is excellent.
+              return Stack(
+                children: [
+                  GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: busLocation,
+                      zoom: 14.0,
+                    ),
+                    polylines: _polylines,
+                    markers: {
+                      Marker(
+                        markerId: MarkerId(trip.id),
+                        position: busLocation,
                       ),
-                      boxShadow: [
-                        BoxShadow(blurRadius: 10.0, color: Colors.black26),
-                      ],
-                    ),
-                    // We use a ListView to make the content scrollable.
-                    // It MUST use the provided scrollController.
-                    child: ListView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(16.0),
-                      children: [
-                        // Handle for the draggable sheet
-                        Center(
-                          child: Container(
-                            width: 40,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                      if (stopCoordinates.containsKey(widget.booking.startStop))
+                        Marker(
+                          markerId: MarkerId(widget.booking.startStop),
+                          position: stopCoordinates[widget.booking.startStop]!,
+                          icon: BitmapDescriptor.defaultMarkerWithHue(
+                            BitmapDescriptor.hueGreen,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        // The rest of the content is the same as before.
-                        _buildEtaCard(),
-                        const SizedBox(height: 16),
-                        // We use a Consumer here to refetch the route/driver details
-                        // without needing to pass them all the way down.
-                        _buildDynamicDetails(context, ref, trip),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ],
+                      if (stopCoordinates.containsKey(widget.booking.endStop))
+                        Marker(
+                          markerId: MarkerId(widget.booking.endStop),
+                          position: stopCoordinates[widget.booking.endStop]!,
+                          icon: BitmapDescriptor.defaultMarkerWithHue(
+                            BitmapDescriptor.hueRed,
+                          ),
+                        ),
+                    },
+                    onMapCreated: (controller) => _mapController = controller,
+                    padding: const EdgeInsets.only(bottom: 250),
+                  ),
+                  DraggableScrollableSheet(
+                    initialChildSize: 0.35,
+                    minChildSize: 0.35,
+                    maxChildSize: 0.8,
+                    builder:
+                        (
+                          BuildContext context,
+                          ScrollController scrollController,
+                        ) {
+                          return Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(24.0),
+                                topRight: Radius.circular(24.0),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  blurRadius: 10.0,
+                                  color: Colors.black26,
+                                ),
+                              ],
+                            ),
+                            child: ListView(
+                              controller: scrollController,
+                              padding: const EdgeInsets.all(16.0),
+                              children: [
+                                Center(
+                                  child: Container(
+                                    width: 40,
+                                    height: 5,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                _buildEtaCard(),
+                                const SizedBox(height: 16),
+                                // THE FIX: Pass the loaded data to the helper.
+                                _buildDynamicDetails(context, ref, trip, route),
+                              ],
+                            ),
+                          );
+                        },
+                  ),
+                ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) =>
+                const Center(child: Text("Could not load route details.")),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -260,69 +272,65 @@ class _RideDetailsScreenState extends ConsumerState<RideDetailsScreen> {
     );
   }
 
-  // A new helper to build the dynamic part of the sheet.
+  // This helper now receives the loaded data as parameters, preventing null errors.
   Widget _buildDynamicDetails(
     BuildContext context,
     WidgetRef ref,
     TripModel trip,
+    RouteModel route,
   ) {
-    final routeAsyncValue = ref.watch(routeDetailsProvider(trip.routeId));
+    // We fetch the driver's details here.
     final driverAsyncValue = ref.watch(userDetailsProvider(trip.driverId));
 
-    return routeAsyncValue.when(
-      data: (route) => driverAsyncValue.when(
-        data: (driver) => Column(
-          children: [
-            Text(
-              DateFormat('d MMMM yyyy').format(trip.departureTime),
-              style: AppTextStyles.bodyText,
+    return driverAsyncValue.when(
+      data: (driver) => Column(
+        children: [
+          Text(
+            DateFormat('d MMMM yyyy').format(trip.departureTime),
+            style: AppTextStyles.bodyText,
+          ),
+          const SizedBox(height: 16),
+          _buildJourneyTimeline(
+            trip: trip,
+            booking: widget.booking,
+            route: route,
+          ),
+          const Divider(height: 32),
+          _buildDetailRow(
+            "Total price for ${widget.booking.seatNumbers.length} passenger(s)",
+            "KES ${widget.booking.farePaid.toInt()}",
+          ),
+          const Divider(height: 32),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: CircleAvatar(
+              backgroundImage:
+                  (driver.profilePictureUrl != null &&
+                      driver.profilePictureUrl!.isNotEmpty)
+                  ? NetworkImage(driver.profilePictureUrl!)
+                  : null,
             ),
-            const SizedBox(height: 16),
-            _buildJourneyTimeline(
-              trip: trip,
-              booking: widget.booking,
-              route: route,
-            ),
-            const Divider(height: 32),
-            _buildDetailRow(
-              "Total price for ${widget.booking.seatNumbers.length} passenger(s)",
-              "KES ${widget.booking.farePaid.toInt()}",
-            ),
-            const Divider(height: 32),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(
-                backgroundImage:
-                    (driver.profilePictureUrl != null &&
-                        driver.profilePictureUrl!.isNotEmpty)
-                    ? NetworkImage(driver.profilePictureUrl!)
-                    : null,
-              ),
-              title: Text("${driver.firstName} ${driver.lastName}"),
-              trailing: const Icon(Icons.phone, color: AppColors.primaryColor),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CancelRideScreen(booking: widget.booking),
-                  ),
+            title: Text("${driver.firstName} ${driver.lastName}"),
+            trailing: const Icon(Icons.phone, color: AppColors.primaryColor),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CancelRideScreen(booking: widget.booking),
                 ),
-                child: const Text("Cancel Ride"),
               ),
+              child: const Text("Cancel Ride"),
             ),
-          ],
-        ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) =>
-            const Center(child: Text("Could not load driver details.")),
+          ),
+        ],
       ),
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, stack) =>
-          const Center(child: Text("Could not load route details.")),
+          const Center(child: Text("Could not load driver details.")),
     );
   }
 
