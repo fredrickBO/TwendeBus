@@ -3,7 +3,6 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:twende_bus_ui/core/models/booking_model.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
-import 'package:twende_bus_ui/features/booking/screens/cancellation_success_screen.dart';
 import 'package:twende_bus_ui/shared/widgets/bottom_nav_bar.dart';
 
 class CancelRideScreen extends StatefulWidget {
