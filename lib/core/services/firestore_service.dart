@@ -56,7 +56,9 @@ class FirestoreService {
           'departureDay',
           isEqualTo: departureDay, // Use the string date directly),
         )
-        //.where('departureDay', isLessThan: Timestamp.fromDate(endOfDay))
+        .where('departureTime', isGreaterThan: Timestamp.now())
+
+        .orderBy('departureTime', descending: false) // Show the earliest trips first
         .snapshots()
         .map(
           (snapshot) =>
