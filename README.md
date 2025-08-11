@@ -4,7 +4,7 @@ A complete, end-to-end bus booking application for both passengers and drivers, 
     
 This repository contains the source code for the TwendeBus Passenger App. A separate branch exists for the TwendeBus Driver App.
 
-Table of Contents
+**Table of Contents**
 
 🚀 Features
 
@@ -14,7 +14,7 @@ Table of Contents
 
 🔥 Getting Started
 
-Prerequisites
+**Prerequisites**
 
 1. Firebase Project Setup
 
@@ -29,7 +29,7 @@ Prerequisites
 🛣️ Future Work
 
 🚀 Features
-Passenger App (twende_bus_ui)
+**Passenger App (twende_bus_ui)**
 
 Secure Authentication: Sign up and sign in with Email/Password or Google Sign-In.
 
