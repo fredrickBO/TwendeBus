@@ -68,13 +68,13 @@ class _CancelRideScreenState extends State<CancelRideScreen> {
             Text("Cancellation Policy", style: AppTextStyles.headline2),
             const SizedBox(height: 16),
             _buildPolicyPoint(
-              "100% Refund: Cancel At Least 5 Hours Before Departure Time.",
+              "100% Refund: Cancel At Least 3 Hours Before Departure Time.",
             ),
             _buildPolicyPoint(
               "50% Refund: Cancel At Least 1 Hour Before Departure Time.",
             ),
             _buildPolicyPoint(
-              "No Refund: Cancellations Made After Departure Time Will Not Be Eligible For A Refund.",
+              "No Refund: Cancellations Made Less Than 1 Hour To The Departure Time Will Not Be Eligible For A Refund.",
             ),
             // Spacer pushes the content below it to the bottom of the screen.
             const Spacer(),

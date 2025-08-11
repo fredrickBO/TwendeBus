@@ -134,7 +134,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             radius: 24,
                             backgroundColor: AppColors.cardColor,
                             backgroundImage: hasImage
-                                ? NetworkImage(imageUrl!)
+                                ? NetworkImage(imageUrl)
                                 : null,
                             child: !hasImage
                                 ? const Icon(

@@ -53,6 +53,30 @@ async function initiateStkPush(amount, phoneNumber, accountReference, transactio
 }
 
 
+//helper function to create a notification
+async function createNotification(userId, title, body) {
+  if(!userId || !title || !body) {
+    logger.error("Attempted to create notification with missing data:", { userId, title, body });
+
+    return;
+  }
+  try {
+    const notificationRef = db.collection("notifications");
+    await notificationRef.add({
+      userId: userId,
+      title: title,
+      body: body,
+      isRead: false,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      read: false,
+    });
+    logger.info(`Notification created for user ${userId}: ${title}`);
+  } catch (error) {
+    logger.error("Error creating notification:", error);
+    throw new HttpsError("internal", "Failed to create notification.");
+  }
+}
+
 
 /**
  * Creates a new booking with a 'pending' status for 5 minutes and
@@ -148,11 +172,73 @@ exports.cancelExpiredBookings = onSchedule("every 5 minutes", async (event) => {
   return null;
 });
 
-//processing payment
-exports.processWalletPayment = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Authentication required.");
-  }
+// //processing payment
+// exports.processWalletPayment = onCall(async (request) => {
+//   if (!request.auth) {
+//     throw new HttpsError("unauthenticated", "Authentication required.");
+//   }
+
+//   const { bookingId } = request.data;
+//   const userId = request.auth.uid;
+  
+//   const bookingRef = db.collection("bookings").doc(bookingId);
+//   const userRef = db.collection("users").doc(userId);
+
+//   return db.runTransaction(async (transaction) => {
+//     // 1. Get the current data for the user and the booking.
+//     const userDoc = await transaction.get(userRef);
+//     const bookingDoc = await transaction.get(bookingRef);
+
+//     if (!userDoc.exists) throw new HttpsError("not-found", "User not found.");
+//     if (!bookingDoc.exists) throw new HttpsError("not-found", "Booking not found.");
+
+//     const userData = userDoc.data();
+//     const bookingData = bookingDoc.data();
+
+//     // 2. Perform critical checks.
+//     if (bookingData.userId !== userId) {
+//       throw new HttpsError("permission-denied", "You can only pay for your own bookings.");
+//     }
+//     if (bookingData.status !== "pending") {
+//       throw new HttpsError("failed-precondition", "This booking is no longer pending payment.");
+//     }
+//     if (userData.walletBalance < bookingData.farePaid) {
+//       throw new HttpsError("failed-precondition", "Insufficient wallet balance.");
+//     }
+
+//     // 3. All checks passed. Perform the updates.
+//     // a. Deduct fare from user's wallet.
+//     const newBalance = userData.walletBalance - bookingData.farePaid;
+//     transaction.update(userRef, { walletBalance: newBalance });
+    
+//     // b. Update the booking status to 'confirmed'.
+//     transaction.update(bookingRef, { status: "confirmed" });
+
+//     // c. Create a transaction record for their history.
+//     const transactionRef = db.collection("transactions").doc();
+//     transaction.set(transactionRef, {
+//       userId: userId,
+//       amount: -bookingData.farePaid,
+//       type: "deduction",
+//       details: `Payment for booking ${bookingId.substring(0, 5)}...`,
+//       timestamp: admin.firestore.FieldValue.serverTimestamp(),
+//     });
+
+//     return { success: true, message: "Payment successful." };
+//   }).then(() => {
+//     // This block runs after the transaction is successful.
+//     createNotification(
+//       userId,
+//       "Booking Confirmed!",
+//       `Your booking for trip ${bookingId.substring(0,5)}... has been confirmed.`
+//     );
+//     return { success: true, message: "Payment successful." };
+//   });
+// });
+
+// --- THIS IS THE CORRECTED FUNCTION ---
+exports.processWalletPayment = onCall(corsOptions, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
 
   const { bookingId } = request.data;
   const userId = request.auth.uid;
@@ -160,56 +246,54 @@ exports.processWalletPayment = onCall(async (request) => {
   const bookingRef = db.collection("bookings").doc(bookingId);
   const userRef = db.collection("users").doc(userId);
 
-  return db.runTransaction(async (transaction) => {
-    // 1. Get the current data for the user and the booking.
-    const userDoc = await transaction.get(userRef);
-    const bookingDoc = await transaction.get(bookingRef);
+  try {
+    await db.runTransaction(async (transaction) => {
+      const userDoc = await transaction.get(userRef);
+      const bookingDoc = await transaction.get(bookingRef);
 
-    if (!userDoc.exists) throw new HttpsError("not-found", "User not found.");
-    if (!bookingDoc.exists) throw new HttpsError("not-found", "Booking not found.");
+      if (!userDoc.exists) throw new HttpsError("not-found", "User not found.");
+      if (!bookingDoc.exists) throw new HttpsError("not-found", "Booking not found.");
 
-    const userData = userDoc.data();
-    const bookingData = bookingDoc.data();
+      const userData = userDoc.data();
+      const bookingData = bookingDoc.data();
 
-    // 2. Perform critical checks.
-    if (bookingData.userId !== userId) {
-      throw new HttpsError("permission-denied", "You can only pay for your own bookings.");
-    }
-    if (bookingData.status !== "pending") {
-      throw new HttpsError("failed-precondition", "This booking is no longer pending payment.");
-    }
-    if (userData.walletBalance < bookingData.farePaid) {
-      throw new HttpsError("failed-precondition", "Insufficient wallet balance.");
-    }
+      if (bookingData.userId !== userId) throw new HttpsError("permission-denied", "You can only pay for your own bookings.");
+      if (bookingData.status !== "pending") throw new HttpsError("failed-precondition", "This booking is no longer pending payment.");
+      if (userData.walletBalance < bookingData.farePaid) throw new HttpsError("failed-precondition", "Insufficient wallet balance.");
 
-    // 3. All checks passed. Perform the updates.
-    // a. Deduct fare from user's wallet.
-    const newBalance = userData.walletBalance - bookingData.farePaid;
-    transaction.update(userRef, { walletBalance: newBalance });
-    
-    // b. Update the booking status to 'confirmed'.
-    transaction.update(bookingRef, { status: "confirmed" });
+      const newBalance = userData.walletBalance - bookingData.farePaid;
+      transaction.update(userRef, { walletBalance: newBalance });
+      transaction.update(bookingRef, { status: "confirmed" });
 
-    // c. Create a transaction record for their history.
-    const transactionRef = db.collection("transactions").doc();
-    transaction.set(transactionRef, {
-      userId: userId,
-      amount: -bookingData.farePaid,
-      type: "deduction",
-      details: `Payment for booking ${bookingId.substring(0, 5)}...`,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      const transactionRef = db.collection("transactions").doc();
+      transaction.set(transactionRef, {
+        userId: userId,
+        amount: -bookingData.farePaid,
+        type: "deduction",
+        details: `Payment for booking ${bookingId.substring(0, 5)}...`,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
     });
 
-    return { success: true, message: "Payment successful." };
-  }).then(() => {
-    // This block runs after the transaction is successful.
-    createNotification(
+    // THE FIX: The transaction is complete and successful.
+    // Now, we can create the notification and return the success message.
+    await createNotification(
       userId,
       "Booking Confirmed!",
-      `Your booking for trip ${bookingId.substring(0,5)}... has been confirmed.`
+      `Your payment was successful and your booking is confirmed.`
     );
+
     return { success: true, message: "Payment successful." };
-  });
+
+  } catch (error) {
+    logger.error("Error processing wallet payment:", error);
+    // Re-throw the error so the client app knows something went wrong.
+    if (error instanceof HttpsError) {
+      throw error;
+    } else {
+      throw new HttpsError("internal", "An unexpected error occurred during payment.");
+    }
+  }
 });
 
 // --- M-PESA TOP-UP FUNCTION (Now uses the helper) ---
@@ -409,12 +493,13 @@ exports.cancelBooking = onCall(corsOptions, async (request) => {
     const hoursDifference = (departureTime.getTime() - now.getTime()) / 3600000;
 
     let refundAmount = 0;
-    if (hoursDifference >= 5) {
+    if (hoursDifference >= 3) {
       refundAmount = bookingData.farePaid; // 100% refund
-    } else if (hoursDifference >= 1) {
+    } else if (hoursDifference >= 1 && hoursDifference < 3) {
       refundAmount = bookingData.farePaid * 0.5; // 50% refund
     }
     // If less than 1 hour, refundAmount remains 0.
+    
 
     // --- DATABASE UPDATES ---
     // 1. Refund the user's wallet if applicable.

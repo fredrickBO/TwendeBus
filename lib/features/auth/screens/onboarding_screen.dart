@@ -25,10 +25,12 @@ class OnboardingScreen extends StatelessWidget {
     }
   }
 
-  @override
+ @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
+        // THE FIX: Wrap the Padding with a SingleChildScrollView.
+        // This allows the content to scroll if the screen is too short.
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
@@ -37,17 +39,11 @@ class OnboardingScreen extends StatelessWidget {
               const Spacer(),
               Image.asset('assets/images/onboarding_main.png', height: 250),
               const SizedBox(height: 40),
-              Text(
-                'Your Travel, Simplified',
-                style: AppTextStyles.headline1,
-                textAlign: TextAlign.center,
-              ),
+              Text('Your Travel, Simplified', style: AppTextStyles.headline1, textAlign: TextAlign.center),
               const SizedBox(height: 16),
               Text(
                 'Plan your journey, book tickets, and manage everything in one place.',
-                style: AppTextStyles.bodyText.copyWith(
-                  color: AppColors.subtleTextColor,
-                ),
+                style: AppTextStyles.bodyText.copyWith(color: AppColors.subtleTextColor),
                 textAlign: TextAlign.center,
               ),
               const Spacer(),

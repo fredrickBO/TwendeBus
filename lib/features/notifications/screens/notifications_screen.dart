@@ -34,8 +34,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       appBar: AppBar(title: const Text("Notifications")),
       body: notificationsAsync.when(
         data: (notifications) {
-          if (notifications.isEmpty)
+          if (notifications.isEmpty) {
             return const Center(child: Text("You have no notifications."));
+          }
 
           return ListView.builder(
             padding: const EdgeInsets.all(16.0),

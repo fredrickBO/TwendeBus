@@ -50,7 +50,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             controller: phoneController,
             autofocus: true,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(hintText: 'e.g., 254712345678'),
+            decoration: const InputDecoration(hintText: 'e.g., 25470000000'),
           ),
           actions: <Widget>[
             TextButton(
@@ -193,6 +193,11 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
+            Expanded(
+              child: ListView(
+                children: [
+                  const SizedBox(height: 24,),
             Text("Select Payment Method", style: AppTextStyles.headline2),
             const SizedBox(height: 24),
 
@@ -229,6 +234,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
               subtitle: "Pay with Visa or Mastercard",
               isSelected: _selectedPaymentMethod == "Card",
               onChanged: _onPaymentMethodChanged,
+            ),
+                ],
+              ),
             ),
 
             const Spacer(),

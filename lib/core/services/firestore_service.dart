@@ -194,10 +194,19 @@ class FirestoreService {
 
   // THE FIX: Add this new method to fetch a single user's details.
   Future<UserModel> getUserDetails(String uid) async {
+
+     // --- THIS IS THE CRITICAL DEBUGGING BLOCK ---
+    print('--- FirestoreService DEBUG: GROUND TRUTH ---');
+    print('Attempting to get user document with this EXACT ID: |$uid|');
+    print('-------------------------------------------');
+    // ---------------------------------------------
+
     final docSnapshot = await _db.collection('users').doc(uid).get();
     if (docSnapshot.exists) {
+      print('SUCCESS: Found user document for ID: $uid');
       return UserModel.fromFirestore(docSnapshot);
     } else {
+      print('!!! FAILURE: User document NOT FOUND for ID: $uid');
       // Throw an error if the user (driver) document is not found.
       throw Exception("User not found for ID: $uid");
     }

@@ -109,8 +109,8 @@ class _PointsSelectionScreenState extends State<PointsSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> boardingPoints = widget.route.boardingPoints;
-    final List<String> deboardingPoints = widget.route.deboardingPoints;
+    final List<String> boardingPoints = widget.route.boardingPoints.map((stop) => stop.name).toList();
+    final List<String> deboardingPoints = widget.route.deboardingPoints.map((stop) => stop.name).toList();
     // Check if both points have been selected to enable the button.
     final bool canProceed =
         _selectedBoardingPoint != null && _selectedDeboardingPoint != null;

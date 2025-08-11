@@ -173,7 +173,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ),
               const SizedBox(height: 20),
               TextFormField(
-                initialValue: user?.email,
+                initialValue: user.email,
                 decoration: const InputDecoration(labelText: 'Email'),
                 enabled: false,
               ),

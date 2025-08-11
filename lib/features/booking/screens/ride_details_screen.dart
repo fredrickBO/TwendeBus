@@ -13,6 +13,7 @@ import 'package:twende_bus_ui/core/models/trip_model.dart';
 import 'package:twende_bus_ui/core/providers.dart';
 import 'package:twende_bus_ui/core/theme/app_theme.dart';
 import 'package:twende_bus_ui/features/booking/screens/cancel_ride_screen.dart';
+import 'package:twende_bus_ui/core/models/stop_model.dart';
 
 class RideDetailsScreen extends ConsumerStatefulWidget {
   final BookingModel booking;
@@ -24,42 +25,29 @@ class RideDetailsScreen extends ConsumerStatefulWidget {
 }
 
 class _RideDetailsScreenState extends ConsumerState<RideDetailsScreen> {
-  // A map of stop names to their coordinates. In a real app, this would come from Firestore.
-  final Map<String, LatLng> stopCoordinates = {
-    "Kencom": const LatLng(-1.2855, 36.8219),
-    "Ngara": const LatLng(-1.2755, 36.8262),
-    "Kasarani": const LatLng(-1.2225, 36.9022),
-    "Mwiki": const LatLng(-1.2175, 36.9328),
-    "Westlands": const LatLng(-1.2646, 36.8049),
-    "Utawala": const LatLng(-1.2954, 36.9534),
-    "Shooters": const LatLng(-1.2954, 36.9534),
-    "Naivas": const LatLng(-1.2646, 36.8049),
-  };
-
+ 
   final Set<Polyline> _polylines = {};
   String _eta = "Calculating...";
   bool _userHasBoarded = false; // Tracks if the user is on the bus
   GoogleMapController? _mapController;
   StreamSubscription? _tripSubscription;
 
-  @override
+   @override
   void initState() {
     super.initState();
-    _tripSubscription = ref
-        .read(tripStreamProvider(widget.booking.tripId).stream)
-        .listen((trip) {
-          if (trip.currentLocation != null) {
-            _fetchDirectionsAndUpdateUI(trip);
-            _mapController?.animateCamera(
-              CameraUpdate.newLatLng(
-                LatLng(
-                  trip.currentLocation!.latitude,
-                  trip.currentLocation!.longitude,
-                ),
-              ),
-            );
-          }
-        });
+    // This listener correctly listens for trip updates.
+    _tripSubscription = ref.read(tripStreamProvider(widget.booking.tripId).stream)
+      .listen((trip) async {
+      if (trip.currentLocation != null && mounted) {
+        // Fetch the associated route to pass it along.
+        final route = await ref.read(routeDetailsProvider(trip.routeId).future);
+        // This call will now work correctly.
+        _fetchDirectionsAndUpdateUI(trip, route);
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLng(LatLng(trip.currentLocation!.latitude, trip.currentLocation!.longitude)),
+        );
+      }
+    });
   }
 
   @override
@@ -68,29 +56,25 @@ class _RideDetailsScreenState extends ConsumerState<RideDetailsScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchDirectionsAndUpdateUI(TripModel trip) async {
+  Future<void> _fetchDirectionsAndUpdateUI(TripModel trip, RouteModel route) async {
+    print("Fetching directions for trip ${trip.id}...");
     final startStopName = widget.booking.startStop;
     final endStopName = widget.booking.endStop;
 
-    if (!stopCoordinates.containsKey(startStopName) ||
-        !stopCoordinates.containsKey(endStopName)) {
-      print(
-        "Error: Stop coordinates not found for '$startStopName' or '$endStopName'. Please update the map.",
-      );
-      setState(() {
-        _eta = "Calculating....";
-      });
-      return; // Stop the function if we don't have the coordinates.
+    StopModel? startStop;
+    StopModel? endStop;
+    try {
+      startStop = route.boardingPoints.firstWhere((p) => p.name == startStopName);
+      endStop = route.deboardingPoints.firstWhere((p) => p.name == endStopName);
+    } catch (e) {
+      // This catch block will run if .firstWhere finds no element.
+      print("Error: Stop models not found in route data for '$startStopName' or '$endStopName'.");
+      if (mounted) setState(() => _eta = "Unavailable");
+      return;
     }
 
-    final LatLng origin = LatLng(
-      trip.currentLocation!.latitude,
-      trip.currentLocation!.longitude,
-    );
-    // Determine the destination based on whether the user has boarded
-    final LatLng destination = _userHasBoarded
-        ? stopCoordinates[endStopName]!
-        : stopCoordinates[startStopName]!;
+    final LatLng origin = LatLng(trip.currentLocation!.latitude, trip.currentLocation!.longitude);
+    final LatLng destination = _userHasBoarded ? endStop.location : startStop.location;
 
     try {
       final functions = FirebaseFunctions.instance;
@@ -159,53 +143,42 @@ class _RideDetailsScreenState extends ConsumerState<RideDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tripAsyncValue = ref.watch(tripStreamProvider(widget.booking.tripId));
+    final tripAsync = ref.watch(tripStreamProvider(widget.booking.tripId));
 
     return Scaffold(
       appBar: AppBar(title: const Text("Ride Details")),
       // THE FIX: Use a nested .when() structure to safely load all data.
-      body: tripAsyncValue.when(
+      body: tripAsync.when(
         data: (trip) {
-          // Now that we have the trip, we can fetch the route details.
-          final routeAsyncValue = ref.watch(routeDetailsProvider(trip.routeId));
 
-          return routeAsyncValue.when(
+         final routeAsync = ref.watch(routeDetailsProvider(trip.routeId));
+
+          return routeAsync.when(
             data: (route) {
-              final busLocation = LatLng(
-                trip.currentLocation?.latitude ?? -1.286389,
-                trip.currentLocation?.longitude ?? 36.817223,
-              );
+              // Find the start and end stop models from the route.
+               final driverAsyncValue = trip.driverId.isNotEmpty ? ref.watch(userDetailsProvider(trip.driverId)) : null;
+              final busLocation = LatLng(trip.currentLocation?.latitude ?? -1.286389, trip.currentLocation?.longitude ?? 36.817223);
+             
+             final startStop = route.boardingPoints.where((p) => p.name == widget.booking.startStop).isNotEmpty
+    ? route.boardingPoints.firstWhere((p) => p.name == widget.booking.startStop)
+    : null;
+          final endStop = route.deboardingPoints.where((p) => p.name == widget.booking.endStop).isNotEmpty
+    ? route.deboardingPoints.firstWhere((p) => p.name == widget.booking.endStop)
+    : null;
 
               // Your Stack-based UI is excellent.
               return Stack(
                 children: [
                   GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: busLocation,
-                      zoom: 14.0,
-                    ),
+                    initialCameraPosition: CameraPosition(target: busLocation, zoom: 14.0),
                     polylines: _polylines,
+                    // THE FIX: Markers are now generated dynamically and safely from route data.
                     markers: {
-                      Marker(
-                        markerId: MarkerId(trip.id),
-                        position: busLocation,
-                      ),
-                      if (stopCoordinates.containsKey(widget.booking.startStop))
-                        Marker(
-                          markerId: MarkerId(widget.booking.startStop),
-                          position: stopCoordinates[widget.booking.startStop]!,
-                          icon: BitmapDescriptor.defaultMarkerWithHue(
-                            BitmapDescriptor.hueGreen,
-                          ),
-                        ),
-                      if (stopCoordinates.containsKey(widget.booking.endStop))
-                        Marker(
-                          markerId: MarkerId(widget.booking.endStop),
-                          position: stopCoordinates[widget.booking.endStop]!,
-                          icon: BitmapDescriptor.defaultMarkerWithHue(
-                            BitmapDescriptor.hueRed,
-                          ),
-                        ),
+                      Marker(markerId: MarkerId(trip.id), position: busLocation),
+                      if (startStop != null)
+                        Marker(markerId: const MarkerId("start"), position: startStop.location, infoWindow: InfoWindow(title: "Your Pickup: ${startStop.name}"), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)),
+                      if (endStop != null)
+                        Marker(markerId: const MarkerId("end"), position: endStop.location, infoWindow: InfoWindow(title: "Your Dropoff: ${endStop.name}"), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed)),
                     },
                     onMapCreated: (controller) => _mapController = controller,
                     padding: const EdgeInsets.only(bottom: 250),
@@ -279,6 +252,12 @@ class _RideDetailsScreenState extends ConsumerState<RideDetailsScreen> {
     TripModel trip,
     RouteModel route,
   ) {
+     if (trip.driverId.isEmpty) {
+      return const ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text("No driver has been assigned to this trip yet."),
+      );
+    }
     // We fetch the driver's details here.
     final driverAsyncValue = ref.watch(userDetailsProvider(trip.driverId));
 
