@@ -1,8 +1,8 @@
-#TwendeBus: A Real-Time Bus Booking & Tracking Platform
+**TwendeBus: A Real-Time Bus Booking & Tracking Platform**
 
-    A complete, end-to-end bus booking application for both passengers and drivers, built with Flutter and Firebase. This platform provides a modern, Uber-like experience for public transport in Nairobi.
+A complete, end-to-end bus booking application for both passengers and drivers, built with Flutter and Firebase. This platform provides a modern, Uber-like experience for public transport in Nairobi.
     
-    This repository contains the source code for the TwendeBus Passenger App. A separate branch exists for the TwendeBus Driver App.
+This repository contains the source code for the TwendeBus Passenger App. A separate branch exists for the TwendeBus Driver App.
 
 Table of Contents
 
