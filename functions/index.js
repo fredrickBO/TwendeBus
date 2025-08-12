@@ -467,72 +467,96 @@ exports.cancelBooking = onCall(corsOptions, async (request) => {
   const bookingRef = db.collection("bookings").doc(bookingId);
   const userRef = db.collection("users").doc(userId);
 
-  return db.runTransaction(async (transaction) => {
-    const bookingDoc = await transaction.get(bookingRef);
-    const userDoc = await transaction.get(userRef);
+  // Use a variable outside the transaction to store the refund amount.
+  let refundAmount = 0;
 
-    if (!bookingDoc.exists) throw new HttpsError("not-found", "Booking not found.");
-    if (bookingDoc.data().userId !== userId) throw new HttpsError("permission-denied", "You can only cancel your own bookings.");
-    if (bookingDoc.data().status !== 'confirmed' && bookingDoc.data().status !== 'active') {
-      throw new HttpsError("failed-precondition", "This booking cannot be cancelled.");
-    }
+  try {
+    // Run the transaction to update the database.
+    await db.runTransaction(async (transaction) => {
+      const bookingDoc = await transaction.get(bookingRef);
+      const userDoc = await transaction.get(userRef);
 
-    const bookingData = bookingDoc.data();
-    const tripRef = db.collection("trips").doc(bookingData.tripId);
-    const tripDoc = await transaction.get(tripRef);
+      if (!bookingDoc.exists) throw new HttpsError("not-found", "Booking not found.");
+      if (bookingDoc.data().userId !== userId) throw new HttpsError("permission-denied", "You can only cancel your own bookings.");
+      if (bookingDoc.data().status !== 'confirmed' && bookingDoc.data().status !== 'active') {
+        throw new HttpsError("failed-precondition", "This booking cannot be cancelled.");
+      }
 
-    if (!tripDoc.exists) throw new HttpsError("not-found", "Associated trip not found.");
-    
-    const tripData = tripDoc.data();
-    const userData = userDoc.data();
-    
-    // --- CANCELLATION POLICY LOGIC ---
-    const departureTime = tripData.departureTime.toDate();
-    const now = new Date();
-    // Difference in hours
-    const hoursDifference = (departureTime.getTime() - now.getTime()) / 3600000;
+      const bookingData = bookingDoc.data();
+      const tripRef = db.collection("trips").doc(bookingData.tripId);
+      const tripDoc = await transaction.get(tripRef);
+      if (!tripDoc.exists) throw new HttpsError("not-found", "Associated trip not found.");
+      
+      const tripData = tripDoc.data();
+      const userData = userDoc.data();
+      
+      const departureTime = tripData.departureTime.toDate();
+      const now = new Date();
+      const hoursDifference = (departureTime.getTime() - now.getTime()) / 3600000;
 
-    let refundAmount = 0;
-    if (hoursDifference >= 3) {
-      refundAmount = bookingData.farePaid; // 100% refund
-    } else if (hoursDifference >= 1 && hoursDifference < 3) {
-      refundAmount = bookingData.farePaid * 0.5; // 50% refund
-    }
-    // If less than 1 hour, refundAmount remains 0.
-    
+      // Calculate and store the refund amount.
+      if (hoursDifference >= 5) refundAmount = bookingData.farePaid;
+      else if (hoursDifference >= 1) refundAmount = bookingData.farePaid * 0.5;
 
-    // --- DATABASE UPDATES ---
-    // 1. Refund the user's wallet if applicable.
-    if (refundAmount > 0) {
-      transaction.update(userRef, { 
-        walletBalance: admin.firestore.FieldValue.increment(refundAmount) 
-      });
-      // Create a refund transaction record for their history.
-      const transactionRef = db.collection("transactions").doc();
-      transaction.set(transactionRef, {
-        userId: userId, amount: refundAmount, type: "refund",
-        details: `Refund for booking ${bookingId.substring(0, 5)}...`,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    }
+      if (refundAmount > 0) {
+        transaction.update(userRef, { walletBalance: admin.firestore.FieldValue.increment(refundAmount) });
+        const transactionRef = db.collection("transactions").doc();
+        transaction.set(transactionRef, {
+          userId, amount: refundAmount, type: "refund",
+          details: `Refund for booking ${bookingId.substring(0, 5)}...`,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
 
-    // 2. Update the booking status to 'cancelled'.
-    transaction.update(bookingRef, { status: "cancelled" });
-
-    // 3. Return the seats to the trip's available pool.
-    transaction.update(tripRef, {
+      transaction.update(bookingRef, { status: "cancelled" });
+      transaction.update(tripRef, {
         bookedSeats: admin.firestore.FieldValue.arrayRemove(...bookingData.seatNumbers),
         availableSeats: admin.firestore.FieldValue.increment(bookingData.seatNumbers.length),
+      });
     });
-    
-    return { success: true, message: `Booking cancelled. A refund of KES ${refundAmount.toFixed(2)} has been processed to your wallet.` };
-  }).then(() => {
-    // Create notification after successful cancellation.
-    createNotification(
+
+    // THE FIX: The transaction is complete. Now we can safely create the notification.
+    await createNotification(
       userId,
       "Booking Cancelled",
       `Your booking ${bookingId.substring(0,5)}... has been cancelled. Your refund of KES ${refundAmount.toFixed(2)} is being processed.`
     );
+
+    // Finally, return the success message to the app.
     return { success: true, message: `Booking cancelled. A refund of KES ${refundAmount.toFixed(2)} has been processed to your wallet.` };
-  });
+
+  } catch(error) {
+    logger.error("Error in cancelBooking for booking:", bookingId, "Error:", error);
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("internal", "An unexpected error occurred during cancellation.");
+  }
+});
+
+// --- NEW FUNCTION for deleting notifications ---
+exports.deleteNotifications = onCall(corsOptions, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+
+  const { notificationIds } = request.data;
+  const userId = request.auth.uid;
+
+  if (!notificationIds || !Array.isArray(notificationIds) || notificationIds.length === 0) {
+    throw new HttpsError("invalid-argument", "A valid array of notificationIds is required.");
+  }
+  
+  const batch = db.batch();
+  const notificationsRef = db.collection("notifications");
+
+  // We must verify ownership before deleting.
+  for (const id of notificationIds) {
+    const docRef = notificationsRef.doc(id);
+    const doc = await docRef.get();
+    if (doc.exists && doc.data().userId === userId) {
+      batch.delete(docRef);
+    } else {
+      logger.warn(`User ${userId} attempted to delete unowned notification ${id}.`);
+    }
+  }
+
+  await batch.commit();
+  return { success: true, message: "Notifications deleted." };
 });

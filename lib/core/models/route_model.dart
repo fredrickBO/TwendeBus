@@ -27,7 +27,7 @@ class RouteModel {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
     // THE FIX: This is a robust helper function to parse the stops.
-    List<StopModel> _parseStops(dynamic stopsData) {
+    List<StopModel> parseStops(dynamic stopsData) {
       if (stopsData is List) {
         return stopsData.map((stop) {
           // If the item in the list is already a map (the new format), parse it.
@@ -53,8 +53,8 @@ class RouteModel {
       endPoint: data['endPoint'] ?? '',
       fare: (data['fare'] ?? 0).toDouble(),
       // Use the robust helper function for both fields.
-      boardingPoints: _parseStops(data['boardingPoints']),
-      deboardingPoints: _parseStops(data['deboardingPoints']),
+      boardingPoints: parseStops(data['boardingPoints']),
+      deboardingPoints: parseStops(data['deboardingPoints']),
     );
   }
 }

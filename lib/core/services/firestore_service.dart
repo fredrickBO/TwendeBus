@@ -244,18 +244,11 @@ class FirestoreService {
         );
   }
 
-  // NEW: Mark all unread notifications as read.
-  Future<void> markNotificationsAsRead(String uid) async {
-    final querySnapshot = await _db
-        .collection('notifications')
-        .where('userId', isEqualTo: uid)
-        .where('isRead', isEqualTo: false)
-        .get();
-
-    final batch = _db.batch();
-    for (final doc in querySnapshot.docs) {
-      batch.update(doc.reference, {'isRead': true});
-    }
-    await batch.commit();
+  // This function marks a SINGLE notification as read.
+  Future<void> markSingleNotificationAsRead(String notificationId) async {
+    // Note: We don't need to check for the user ID here, as a user will only
+    // ever have the IDs for their own notifications. For added security,
+    // a Cloud Function could enforce this, but for the client, this is fine.
+    await _db.collection('notifications').doc(notificationId).update({'isRead': true});
   }
 }
