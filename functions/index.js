@@ -172,69 +172,6 @@ exports.cancelExpiredBookings = onSchedule("every 5 minutes", async (event) => {
   return null;
 });
 
-// //processing payment
-// exports.processWalletPayment = onCall(async (request) => {
-//   if (!request.auth) {
-//     throw new HttpsError("unauthenticated", "Authentication required.");
-//   }
-
-//   const { bookingId } = request.data;
-//   const userId = request.auth.uid;
-  
-//   const bookingRef = db.collection("bookings").doc(bookingId);
-//   const userRef = db.collection("users").doc(userId);
-
-//   return db.runTransaction(async (transaction) => {
-//     // 1. Get the current data for the user and the booking.
-//     const userDoc = await transaction.get(userRef);
-//     const bookingDoc = await transaction.get(bookingRef);
-
-//     if (!userDoc.exists) throw new HttpsError("not-found", "User not found.");
-//     if (!bookingDoc.exists) throw new HttpsError("not-found", "Booking not found.");
-
-//     const userData = userDoc.data();
-//     const bookingData = bookingDoc.data();
-
-//     // 2. Perform critical checks.
-//     if (bookingData.userId !== userId) {
-//       throw new HttpsError("permission-denied", "You can only pay for your own bookings.");
-//     }
-//     if (bookingData.status !== "pending") {
-//       throw new HttpsError("failed-precondition", "This booking is no longer pending payment.");
-//     }
-//     if (userData.walletBalance < bookingData.farePaid) {
-//       throw new HttpsError("failed-precondition", "Insufficient wallet balance.");
-//     }
-
-//     // 3. All checks passed. Perform the updates.
-//     // a. Deduct fare from user's wallet.
-//     const newBalance = userData.walletBalance - bookingData.farePaid;
-//     transaction.update(userRef, { walletBalance: newBalance });
-    
-//     // b. Update the booking status to 'confirmed'.
-//     transaction.update(bookingRef, { status: "confirmed" });
-
-//     // c. Create a transaction record for their history.
-//     const transactionRef = db.collection("transactions").doc();
-//     transaction.set(transactionRef, {
-//       userId: userId,
-//       amount: -bookingData.farePaid,
-//       type: "deduction",
-//       details: `Payment for booking ${bookingId.substring(0, 5)}...`,
-//       timestamp: admin.firestore.FieldValue.serverTimestamp(),
-//     });
-
-//     return { success: true, message: "Payment successful." };
-//   }).then(() => {
-//     // This block runs after the transaction is successful.
-//     createNotification(
-//       userId,
-//       "Booking Confirmed!",
-//       `Your booking for trip ${bookingId.substring(0,5)}... has been confirmed.`
-//     );
-//     return { success: true, message: "Payment successful." };
-//   });
-// });
 
 // --- THIS IS THE CORRECTED FUNCTION ---
 exports.processWalletPayment = onCall(corsOptions, async (request) => {
@@ -559,4 +496,129 @@ exports.deleteNotifications = onCall(corsOptions, async (request) => {
 
   await batch.commit();
   return { success: true, message: "Notifications deleted." };
+});
+exports.setAdminClaim = onRequest({ cors: true }, async (req, res) => {
+  try {
+    // THIS IS YOUR SPECIFIC USER UID
+    const uidToMakeAdmin = "VchFNbvWUaV7Vij9bDPBLrS0Pb73";
+    
+    // This is the secure claim we are setting.
+    const claims = { isAdmin: true };
+
+    // This is the command that sets the claim on the server.
+    await admin.auth().setCustomUserClaims(uidToMakeAdmin, claims);
+
+    const successMessage = `Success! User with UID: ${uidToMakeAdmin} is now an admin. You can now log in to the admin panel. Please comment out or delete this function and redeploy for security.`;
+    logger.info(successMessage);
+    res.status(200).send(successMessage);
+
+  } catch (error) {
+    const errorMessage = `ERROR: Could not set admin claim. Reason: ${error.message}`;
+    logger.error(errorMessage);
+    res.status(500).send(errorMessage);
+  }
+});
+
+// --- NEW FUNCTION for deleting a route ---
+exports.deleteRoute = onCall(corsOptions, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+  
+  const userId = request.auth.uid;
+  const { routeId } = request.data;
+  
+  // THE FIX: We will now check the user's role directly from the Firestore database.
+  // This is the single source of truth and is always up-to-date.
+  const userDoc = await db.collection('users').doc(userId).get();
+  if (!userDoc.exists || userDoc.data().role !== 'admin') {
+    throw new HttpsError("permission-denied", "You must be an admin to delete routes.");
+  }
+
+  // If the check passes, proceed with the deletion.
+  if (!routeId) {
+    throw new HttpsError("invalid-argument", "A valid routeId is required.");
+  }
+
+  try {
+    await db.collection('routes').doc(routeId).delete();
+    return { success: true, message: "Route deleted successfully." };
+  } catch (error) {
+    logger.error("Error deleting route:", error);
+    throw new HttpsError("internal", "Could not delete route.");
+  }
+});
+
+// --- NEW FUNCTION for changing a user's role ---
+exports.changeUserRole = onCall({ cors: true }, async (request) => {
+  // 1. Verify the caller is a super_admin.
+  if (request.auth.token.role !== 'super_admin') {
+    throw new HttpsError("permission-denied", "You must be a super admin to change roles.");
+  }
+
+  const { targetUid, newRole } = request.data;
+  const allowedRoles = ['admin', 'support', 'driver', 'passenger'];
+
+  if (!targetUid || !newRole || !allowedRoles.includes(newRole)) {
+    throw new HttpsError("invalid-argument", "A valid target UID and role are required.");
+  }
+  
+  try {
+    // 2. Update the role in the user's Firestore document.
+    await db.collection('users').doc(targetUid).update({ role: newRole });
+    return { success: true, message: `User role updated to ${newRole}.` };
+  } catch (error) {
+    logger.error(`Failed to change role for user ${targetUid}`, error);
+    throw new HttpsError("internal", "Could not update user role.");
+  }
+});
+
+// --- NEW FUNCTION for creating staff users ---
+exports.createStaffUser = onCall({ cors: true }, async (request) => {
+  // 1. Security Check: Only a super_admin can call this function.
+  if (request.auth.token.role !== 'super_admin') {
+    throw new HttpsError("permission-denied", "You must be a super admin to create staff users.");
+  }
+
+  const { email, password, firstName, lastName, phoneNumber, role } = request.data;
+  const allowedRoles = ['admin', 'support', 'driver'];
+
+  if (!email || !password || !firstName || !lastName || !role) {
+    throw new HttpsError("invalid-argument", "All fields are required.");
+  }
+  if (!allowedRoles.includes(role)) {
+    throw new HttpsError("invalid-argument", "Invalid role specified.");
+  }
+
+  try {
+    // 2. Create the user in Firebase Authentication.
+    const userRecord = await admin.auth().createUser({
+      email: email,
+      password: password,
+      displayName: `${firstName} ${lastName}`,
+    });
+
+    // 3. Create the user's profile document in Firestore with their role.
+    await db.collection("users").doc(userRecord.uid).set({
+      uid: userRecord.uid,
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      phoneNumber: phoneNumber || "",
+      role: role,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      walletBalance: 0,
+      notificationsEnabled: true,
+    });
+
+    return { success: true, message: `Successfully created ${role} user.` };
+
+  } catch (error) {
+    logger.error("Error creating staff user:", error);
+    // Translate common auth errors into user-friendly messages
+    if (error.code === 'auth/email-already-exists') {
+        throw new HttpsError('already-exists', 'The email address is already in use by another account.');
+    }
+    throw new HttpsError("internal", "Could not create staff user.");
+  }
 });
