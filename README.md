@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 **TwendeBus: A Real-Time Bus Booking & Tracking Platform**
 
 A complete, end-to-end bus booking application for both passengers and drivers, built with Flutter and Firebase. This platform provides a modern, Uber-like experience for public transport in Nairobi.
